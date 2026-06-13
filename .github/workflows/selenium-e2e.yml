@@ -37,6 +37,7 @@ jobs:
 
       - name: Start Backend server in background
         run: |
+          npm run seed
           npm start &
           sleep 5
           curl --retry 5 --retry-delay 3 http://localhost:3001/api/health || exit 1
