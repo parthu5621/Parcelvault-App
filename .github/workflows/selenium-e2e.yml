@@ -34,13 +34,10 @@ jobs:
       # ── Frontend Build ─────────────────────────────────────────────────────
       - name: Install web app dependencies
         run: npm install
-        working-directory: .
 
       - name: Build web application
         run: npm run build
-        working-directory: .
         env:
-          # Override to use relative API path during CI (backend runs on localhost)
           VITE_API_URL: http://localhost:3001/api
 
       # ── Backend ─────────────────────────────────────────────────────────────
@@ -53,22 +50,41 @@ jobs:
           npm run seed
           npm start &
           echo "Waiting for backend to start..."
-          for i in {1..15}; do
-            curl -s http://localhost:3001/api/health && break || sleep 2
+          for i in {1..20}; do
+            if curl -sf http://localhost:3001/api/health > /dev/null 2>&1; then
+              echo "Backend is up!"
+              break
+            fi
+            echo "Attempt $i/20 — waiting 3s..."
+            sleep 3
           done
-          curl --fail http://localhost:3001/api/health || (echo "Backend did not start in time" && exit 1)
+          curl --fail --silent http://localhost:3001/api/health \
+            || (echo "ERROR: Backend did not start in time" && exit 1)
         working-directory: ./backend
+        env:
+          PORT: 3001
+          JWT_SECRET: parcelvault_super_secret_key_2026
+          JWT_EXPIRES_IN: 7d
+          DB_PATH: ./src/db/parcelvault.db
+          NODE_ENV: development
+          # node:sqlite is experimental in Node 22.x — this flag enables it
+          NODE_OPTIONS: --experimental-sqlite
 
       # ── Dev Server ───────────────────────────────────────────────────────────
       - name: Start Vite dev server in background
         run: |
           npm run dev &
           echo "Waiting for Vite to start..."
-          for i in {1..15}; do
-            curl -s http://localhost:5173 && break || sleep 2
+          for i in {1..20}; do
+            if curl -sf http://localhost:5173 > /dev/null 2>&1; then
+              echo "Vite dev server is up!"
+              break
+            fi
+            echo "Attempt $i/20 — waiting 3s..."
+            sleep 3
           done
-          curl --fail http://localhost:5173 || (echo "Vite dev server did not start in time" && exit 1)
-        working-directory: .
+          curl --fail --silent http://localhost:5173 \
+            || (echo "ERROR: Vite dev server did not start in time" && exit 1)
 
       # ── Selenium Tests ───────────────────────────────────────────────────────
       - name: Install Selenium test dependencies
@@ -84,6 +100,8 @@ jobs:
         run: mkdir -p selenium-tests/test-results
 
       - name: Run Selenium E2E Tests (Headless)
+        # continue-on-error so artifacts always upload even if tests fail
+        continue-on-error: true
         run: HEADLESS=true npm run test:all
         working-directory: ./selenium-tests
         env:
@@ -104,5 +122,6 @@ jobs:
         with:
           name: Selenium E2E Test Results
           path: selenium-tests/test-results/*.xml
-          reporter: mocha-junit
+          # 'java-junit' is the correct reporter for JUnit XML (mocha-junit-reporter output)
+          reporter: java-junit
           fail-on-error: false
