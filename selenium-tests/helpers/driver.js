@@ -15,6 +15,7 @@ async function buildDriver() {
   options.addArguments('--disable-dev-shm-usage');
   if (HEADLESS) {
     options.addArguments('--headless=new');
+    options.addArguments('--disable-gpu'); // Recommended for headless CI environments
   }
 
   const driver = await new Builder()

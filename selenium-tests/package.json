@@ -15,11 +15,10 @@
   },
   "dependencies": {
     "exceljs": "^4.4.0",
-    "selenium-webdriver": "^4.27.0",
+    "selenium-webdriver": "^4.44.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "chromedriver": "^131.0.3",
     "mocha": "^10.7.3"
   }
 }
