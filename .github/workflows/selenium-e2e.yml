@@ -129,10 +129,7 @@ jobs:
         if: always()
         with:
           name: E2E Automated QA Suite Results
-          path: |
-            selenium-tests/test-results/*.xml
-            android-tests/test-results/*.xml
+          path: 'selenium-tests/test-results/*.xml,android-tests/test-results/*.xml'
           # 'java-junit' is the correct reporter for JUnit XML (mocha-junit-reporter output)
           reporter: java-junit
           fail-on-error: false
-
