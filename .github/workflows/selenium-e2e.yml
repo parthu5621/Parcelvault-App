@@ -1,0 +1,74 @@
+name: ParcelVault — Selenium E2E Tests
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:           # Manual trigger from GitHub UI
+
+jobs:
+  selenium-e2e:
+    name: Run Selenium E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install web app dependencies
+        run: npm install
+        working-directory: .
+
+      - name: Build web application
+        run: npm run build
+        working-directory: .
+
+      - name: Install backend dependencies
+        run: npm install
+        working-directory: ./backend
+
+      - name: Start Backend server in background
+        run: |
+          npm run seed
+          npm start &
+          sleep 5
+          curl --retry 5 --retry-delay 3 http://localhost:3001/api/health || exit 1
+        working-directory: ./backend
+
+      - name: Start Vite dev server in background
+        run: |
+          npm run dev &
+          sleep 8
+          curl --retry 5 --retry-delay 3 http://localhost:5173 || exit 1
+        working-directory: .
+
+      - name: Install Selenium test dependencies
+        run: npm install
+        working-directory: ./selenium-tests
+
+      - name: Setup Chrome for Selenium
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - name: Run Selenium E2E Tests (Headless)
+        run: HEADLESS=true npm run test:all
+        working-directory: ./selenium-tests
+        env:
+          BASE_URL: http://localhost:5173
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-test-results
+          path: selenium-tests/test-results/
+          retention-days: 7
