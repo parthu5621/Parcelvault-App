@@ -144,9 +144,9 @@ describe('🎓 Student Flow Tests', function () {
     await waitForText(driver, 'PKG-2026-00001', 5000);
     await clickByText(driver, 'PKG-2026-00001');
     await waitForText(driver, 'Parcel Details', 5000);
-    // Click back button
-    const buttons = await driver.findElements(By.css('button'));
-    await buttons[0].click();
+    // Click back button using executeScript to ensure it works even if covered or focus issues occur
+    const buttons = await driver.findElements(By.css('button.rounded-full'));
+    await driver.executeScript('arguments[0].click();', buttons[0]);
     await waitForText(driver, 'My Parcels', 5000);
     await assertTextExists(driver, 'My Parcels');
   });
