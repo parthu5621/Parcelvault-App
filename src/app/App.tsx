@@ -210,14 +210,14 @@ const InputField = ({ icon, label, ...props }: { icon: React.ReactNode; label?: 
   </div>
 );
 
-const PrimaryBtn = ({ children, onClick, disabled, className = '' }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string }) => (
-  <button onClick={onClick} disabled={disabled} className={`w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-4 rounded-2xl font-semibold text-base shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed ${className}`}>
+const PrimaryBtn = ({ children, onClick, disabled, className = '', id }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; id?: string }) => (
+  <button id={id} onClick={onClick} disabled={disabled} className={`w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-4 rounded-2xl font-semibold text-base shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed ${className}`}>
     {children}
   </button>
 );
 
-const SecondaryBtn = ({ children, onClick, className = '' }: { children: React.ReactNode; onClick?: () => void; className?: string }) => (
-  <button onClick={onClick} className={`w-full bg-zinc-900 border border-zinc-800 text-white py-4 rounded-2xl font-semibold hover:border-zinc-600 active:scale-[0.99] transition-all ${className}`}>
+const SecondaryBtn = ({ children, onClick, className = '', id }: { children: React.ReactNode; onClick?: () => void; className?: string; id?: string }) => (
+  <button id={id} onClick={onClick} className={`w-full bg-zinc-900 border border-zinc-800 text-white py-4 rounded-2xl font-semibold hover:border-zinc-600 active:scale-[0.99] transition-all ${className}`}>
     {children}
   </button>
 );
@@ -306,9 +306,9 @@ function WelcomeScreen({ onLogin, onRegister, onAdminLogin }: { onLogin: () => v
       <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">ParcelVault</h1>
       <p className="text-zinc-400 mb-12 text-base">Smart Campus Locker System</p>
       <div className="w-full max-w-md space-y-3">
-        <PrimaryBtn onClick={onLogin}>Student Login</PrimaryBtn>
-        <SecondaryBtn onClick={onRegister}>Create Student Account</SecondaryBtn>
-        <button onClick={onAdminLogin} className="w-full py-3 text-zinc-500 text-sm hover:text-zinc-300 transition-colors">
+        <PrimaryBtn id="student-login-btn" onClick={onLogin}>Student Login</PrimaryBtn>
+        <SecondaryBtn id="create-account-btn" onClick={onRegister}>Create Student Account</SecondaryBtn>
+        <button id="admin-access-btn" onClick={onAdminLogin} className="w-full py-3 text-zinc-500 text-sm hover:text-zinc-300 transition-colors">
           Admin Access →
         </button>
       </div>
@@ -363,13 +363,13 @@ function LoginScreen({ onLogin, onBack, onForgotPassword, showToast }: any) {
         <h1 className="text-3xl font-bold text-white mb-1">Welcome Back</h1>
         <p className="text-zinc-400 mb-8">Sign in as a student</p>
         <div className="space-y-4">
-          <InputField icon={<Mail className="w-5 h-5" />} label="Email" type="email" placeholder="your@university.edu" value={email} onChange={e => setEmail(e.target.value)} />
+          <InputField id="email" icon={<Mail className="w-5 h-5" />} label="Email" type="email" placeholder="your@university.edu" value={email} onChange={e => setEmail(e.target.value)} />
           <div className="space-y-1.5">
             <label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Password</label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
-              <input type={showPwd ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-zinc-900 text-white pl-12 pr-12 py-4 rounded-2xl border border-zinc-800 focus:border-purple-500 focus:outline-none transition-colors placeholder:text-zinc-600" />
-              <button onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
+              <input id="password" type={showPwd ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-zinc-900 text-white pl-12 pr-12 py-4 rounded-2xl border border-zinc-800 focus:border-purple-500 focus:outline-none transition-colors placeholder:text-zinc-600" />
+              <button id="password-toggle" onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
                 {showPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
@@ -377,7 +377,7 @@ function LoginScreen({ onLogin, onBack, onForgotPassword, showToast }: any) {
           <div className="flex justify-end">
             <button onClick={onForgotPassword} className="text-purple-400 text-sm">Forgot password?</button>
           </div>
-          <PrimaryBtn onClick={handleSubmit} disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</PrimaryBtn>
+          <PrimaryBtn id="login-button" onClick={handleSubmit} disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</PrimaryBtn>
           <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800 mt-4">
             <p className="text-zinc-500 text-xs font-medium mb-2 uppercase tracking-wider">Demo Credentials</p>
             <p className="text-zinc-300 text-sm">📧 alex@university.edu</p>
@@ -431,9 +431,9 @@ function AdminLoginScreen({ onLogin, onBack, showToast }: any) {
         <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-pink-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
           <ShieldCheck className="w-10 h-10 text-white" />
         </div>
-        <InputField icon={<Mail className="w-5 h-5" />} label="Admin Email" type="email" placeholder="admin@university.edu" value={email} onChange={e => setEmail(e.target.value)} />
-        <InputField icon={<Lock className="w-5 h-5" />} label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-        <PrimaryBtn onClick={handleSubmit} disabled={loading}>{loading ? 'Signing in…' : 'Admin Sign In'}</PrimaryBtn>
+        <InputField id="admin-email" icon={<Mail className="w-5 h-5" />} label="Admin Email" type="email" placeholder="admin@university.edu" value={email} onChange={e => setEmail(e.target.value)} />
+        <InputField id="admin-password" icon={<Lock className="w-5 h-5" />} label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+        <PrimaryBtn id="admin-login-button" onClick={handleSubmit} disabled={loading}>{loading ? 'Signing in…' : 'Admin Sign In'}</PrimaryBtn>
         <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
           <p className="text-zinc-500 text-xs font-medium mb-2 uppercase tracking-wider">Demo Admin Credentials</p>
           <p className="text-zinc-300 text-sm">📧 admin@university.edu</p>
@@ -529,7 +529,7 @@ function RegisterScreen({ onRegister, onBack, showToast }: any) {
         <InputField icon={<Lock className="w-5 h-5" />} label="Password" type="password" placeholder="Min. 6 characters" value={password} onChange={e => setPassword(e.target.value)} />
         <InputField icon={<Lock className="w-5 h-5" />} label="Confirm Password" type="password" placeholder="Repeat password" value={confirm} onChange={e => setConfirm(e.target.value)} />
         
-        <PrimaryBtn onClick={handleSubmit} disabled={loading}>{loading ? 'Creating Account…' : role === 'admin' ? 'Register Admin' : 'Create Student Account'}</PrimaryBtn>
+        <PrimaryBtn id="register-button" onClick={handleSubmit} disabled={loading}>{loading ? 'Creating Account…' : role === 'admin' ? 'Register Admin' : 'Create Student Account'}</PrimaryBtn>
       </div>
     </div>
   );

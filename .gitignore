@@ -5,3 +5,8 @@ dist/
 .DS_Store
 coverage/
 *.log
+
+# Selenium / CI test artifacts
+selenium-tests/test-results/
+!selenium-tests/test-results/.gitkeep
+android-tests/reports/
