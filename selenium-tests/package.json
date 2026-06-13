@@ -10,8 +10,8 @@
     "test:admin": "mocha tests/04_admin_flow.test.js --timeout 30000 --reporter spec",
     "test:parcels": "mocha tests/05_parcel_management.test.js --timeout 30000 --reporter spec",
     "test:onboarding": "mocha tests/01_onboarding.test.js --timeout 30000 --reporter spec",
-    "test:all": "mocha 'tests/**/*.test.js' --timeout 30000 --reporter spec --exit",
-    "test:headless": "HEADLESS=true mocha 'tests/**/*.test.js' --timeout 30000 --reporter spec --exit"
+    "test:all": "mocha 'tests/**/*.test.js' --timeout 30000 --reporter mocha-junit-reporter --reporter-options mochaFile=test-results/results.xml --exit",
+    "test:headless": "HEADLESS=true mocha 'tests/**/*.test.js' --timeout 30000 --reporter mocha-junit-reporter --reporter-options mochaFile=test-results/results.xml --exit"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
@@ -19,6 +19,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "mocha": "^10.7.3"
+    "mocha": "^10.7.3",
+    "mocha-junit-reporter": "^2.2.1"
   }
 }

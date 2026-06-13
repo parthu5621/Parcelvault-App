@@ -67,8 +67,8 @@ describe('🔐 Authentication Tests', function () {
     await clickButton(driver, 'Sign In');
 
     // Should show success toast then navigate to dashboard
-    await waitForText(driver, 'Dashboard', 8000);
-    await assertTextExists(driver, 'Dashboard');
+    await waitForText(driver, 'Good day', 8000);
+    await assertTextExists(driver, 'Good day');
   });
 
   it('TC-13: Student Login - Back button returns to Welcome screen', async () => {

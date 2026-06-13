@@ -26,7 +26,7 @@ describe('🎓 Student Flow Tests', function () {
   // ─── Student Dashboard ──────────────────────────────────────────────────────
 
   it('TC-28: Student Dashboard renders greeting and stats cards', async () => {
-    await assertTextExists(driver, 'Dashboard');
+    await assertTextExists(driver, 'Good day');
     const pageText = await driver.findElement(By.css('body')).then(e => e.getText());
     // Should show parcel stat counts (Pending, Collected, etc.)
     assert.ok(
@@ -36,7 +36,7 @@ describe('🎓 Student Flow Tests', function () {
   });
 
   it('TC-29: Student Dashboard shows Quick Actions grid (My Parcels, etc.)', async () => {
-    await assertTextExists(driver, 'Dashboard');
+    await assertTextExists(driver, 'Good day');
     const pageText = await driver.findElement(By.css('body')).then(e => e.getText());
     assert.ok(
       pageText.includes('My Parcels') || pageText.includes('Parcel'),

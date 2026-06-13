@@ -99,7 +99,7 @@ async function loginAsStudent(driver, email = 'alex@university.edu', password = 
   await inputs[1].sendKeys(password);
 
   await clickButton(driver, 'Sign In');
-  await waitForText(driver, 'Dashboard', 8000);
+  await waitForText(driver, 'Good day', 8000);
 }
 
 // Login as admin
