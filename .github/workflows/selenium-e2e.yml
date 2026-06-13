@@ -97,7 +97,9 @@ jobs:
           chrome-version: stable
 
       - name: Create test-results directory
-        run: mkdir -p selenium-tests/test-results
+        run: |
+          mkdir -p selenium-tests/test-results
+          mkdir -p android-tests/test-results
 
       - name: Run Selenium E2E Tests (Headless)
         # continue-on-error so artifacts always upload even if tests fail
@@ -107,21 +109,30 @@ jobs:
         env:
           BASE_URL: http://localhost:5173
 
+      - name: Generate Unified QA Test Reports
+        if: always()
+        run: node selenium-tests/generate-reports.js
+
       # ── Artifacts & Reports ──────────────────────────────────────────────────
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: selenium-test-results
-          path: selenium-tests/test-results/
+          name: qa-automation-test-results
+          path: |
+            selenium-tests/test-results/
+            android-tests/test-results/
           retention-days: 7
 
       - name: Test Report
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: Selenium E2E Test Results
-          path: selenium-tests/test-results/*.xml
+          name: E2E Automated QA Suite Results
+          path: |
+            selenium-tests/test-results/*.xml
+            android-tests/test-results/*.xml
           # 'java-junit' is the correct reporter for JUnit XML (mocha-junit-reporter output)
           reporter: java-junit
           fail-on-error: false
+
