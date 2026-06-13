@@ -1,0 +1,1166 @@
+[
+  {
+    "path": "/api/health",
+    "method": "GET",
+    "group": "System",
+    "auth": "public",
+    "description": "Health check endpoint for the ParcelVault API.",
+    "request": {
+      "headers": {},
+      "queryParams": {},
+      "body": {}
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "status": "ok",
+          "service": "ParcelVault API",
+          "version": "1.0.0",
+          "timestamp": "ISO Date String"
+        }
+      }
+    },
+    "associated_files": [
+      "backend/src/server.js"
+    ],
+    "dependencies": [
+      "express"
+    ]
+  },
+  {
+    "path": "/api/auth/login",
+    "method": "POST",
+    "group": "Authentication",
+    "auth": "public",
+    "description": "Authenticate an admin or student user and return a JWT token.",
+    "request": {
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": { "type": "string", "required": true, "description": "User's email address" },
+        "password": { "type": "string", "required": true, "description": "User's password" }
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "role": "admin | student",
+          "token": "JWT String",
+          "user": {
+            "id": "UUID String",
+            "name": "User's full name",
+            "email": "User's email",
+            "studentId": "Student-specific ID (only if role is student)",
+            "phone": "Student-specific phone number (only if role is student)"
+          }
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "body": { "success": false, "error": "Email and password are required" }
+        },
+        {
+          "status": 401,
+          "body": { "success": false, "error": "Invalid email or password" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/auth.js"
+    ],
+    "dependencies": [
+      "bcryptjs",
+      "jsonwebtoken"
+    ]
+  },
+  {
+    "path": "/api/auth/register",
+    "method": "POST",
+    "group": "Authentication",
+    "auth": "public",
+    "description": "Register a new student or admin account.",
+    "request": {
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": { "type": "string", "required": true, "description": "Full name" },
+        "email": { "type": "string", "required": true, "description": "Email address (must be valid format)" },
+        "password": { "type": "string", "required": true, "description": "Password (min 6 chars, containing both letters and numbers)" },
+        "role": { "type": "string", "required": false, "default": "student", "description": "Role ('admin' or 'student')" },
+        "phone": { "type": "string", "required": "conditional", "description": "Phone number (required for student, min 10 digits)" },
+        "studentId": { "type": "string", "required": "conditional", "description": "Unique student identifier (required for student)" }
+      }
+    },
+    "response": {
+      "success": {
+        "status": 201,
+        "body": {
+          "success": true,
+          "role": "admin | student",
+          "token": "JWT String",
+          "user": {
+            "id": "UUID String",
+            "name": "User's name",
+            "email": "User's email",
+            "studentId": "Student ID (if student)",
+            "phone": "Phone number (if student)"
+          }
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "body": { "success": false, "error": "Name, email and password are required | Please enter a valid email address | Password must be at least 6 characters | Password must contain both letters and numbers | Phone and student ID are required for student registration | Please enter a valid phone number (min 10 digits)" }
+        },
+        {
+          "status": 409,
+          "body": { "success": false, "error": "Email already registered as admin | Email already registered | Student ID already registered" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/auth.js"
+    ],
+    "dependencies": [
+      "bcryptjs",
+      "jsonwebtoken",
+      "crypto"
+    ]
+  },
+  {
+    "path": "/api/auth/me",
+    "method": "GET",
+    "group": "Authentication",
+    "auth": "authenticated (any)",
+    "description": "Decode and return details of the current logged-in user session.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "user": {
+            "id": "UUID String",
+            "role": "admin | student",
+            "email": "User's email",
+            "name": "User's name",
+            "iat": 1234567890,
+            "exp": 1234567890
+          }
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "body": { "success": false, "error": "No token provided | Invalid token" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/auth.js"
+    ],
+    "dependencies": [
+      "jsonwebtoken"
+    ]
+  },
+  {
+    "path": "/api/parcels",
+    "method": "GET",
+    "group": "Parcels",
+    "auth": "authenticated (owner or admin)",
+    "description": "Get all parcels (admin role) or own parcels (student role).",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": [
+            {
+              "id": "UUID String",
+              "trackingId": "String",
+              "studentId": "UUID String",
+              "studentName": "String",
+              "description": "String",
+              "deliveryService": "String",
+              "lockerId": "UUID String | null",
+              "lockerLabel": "String | null",
+              "otp": "String | null",
+              "status": "pending | ready | collected | expired",
+              "arrivedAt": "ISO Date String",
+              "assignedAt": "ISO Date String | null",
+              "collectedAt": "ISO Date String | null",
+              "expiresAt": "ISO Date String | null"
+            }
+          ]
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "body": { "success": false, "error": "No token provided | Invalid or expired token" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/parcels.js",
+      "backend/src/middleware/auth.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/parcels/:id",
+    "method": "GET",
+    "group": "Parcels",
+    "auth": "authenticated (owner or admin)",
+    "description": "Retrieve details of a specific parcel by ID.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "pathParams": {
+        "id": "UUID of the parcel"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "id": "UUID String",
+            "trackingId": "String",
+            "studentId": "UUID String",
+            "studentName": "String",
+            "description": "String",
+            "deliveryService": "String",
+            "lockerId": "UUID String | null",
+            "lockerLabel": "String | null",
+            "otp": "String | null",
+            "status": "pending | ready | collected | expired",
+            "arrivedAt": "ISO Date String",
+            "assignedAt": "ISO Date String | null",
+            "collectedAt": "ISO Date String | null",
+            "expiresAt": "ISO Date String | null"
+          }
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "body": { "success": false, "error": "No token provided | Invalid or expired token" }
+        },
+        {
+          "status": 403,
+          "body": { "success": false, "error": "Access denied" }
+        },
+        {
+          "status": 404,
+          "body": { "success": false, "error": "Parcel not found" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/parcels.js",
+      "backend/src/middleware/auth.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/parcels",
+    "method": "POST",
+    "group": "Parcels",
+    "auth": "admin-only",
+    "description": "Log a new incoming parcel into the database (admin only).",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "studentId": { "type": "string", "required": true, "description": "UUID of the student" },
+        "description": { "type": "string", "required": true, "description": "Description of the package contents/box" },
+        "deliveryService": { "type": "string", "required": true, "description": "Carrier (e.g. Fedex, DHL)" },
+        "trackingId": { "type": "string", "required": false, "description": "Tracking ID (auto-generated if missing)" }
+      }
+    },
+    "response": {
+      "success": {
+        "status": 201,
+        "body": {
+          "success": true,
+          "data": {
+            "id": "UUID String",
+            "trackingId": "String",
+            "studentId": "UUID String",
+            "studentName": "String",
+            "description": "String",
+            "deliveryService": "String",
+            "lockerId": null,
+            "lockerLabel": null,
+            "otp": null,
+            "status": "pending",
+            "arrivedAt": "ISO Date String",
+            "assignedAt": null,
+            "collectedAt": null,
+            "expiresAt": null
+          }
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "body": { "success": false, "error": "studentId, description and deliveryService are required" }
+        },
+        {
+          "status": 401,
+          "body": { "success": false, "error": "No token provided | Invalid or expired token" }
+        },
+        {
+          "status": 403,
+          "body": { "success": false, "error": "Admin access required" }
+        },
+        {
+          "status": 404,
+          "body": { "success": false, "error": "Student not found" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/parcels.js",
+      "backend/src/middleware/auth.js"
+    ],
+    "dependencies": [
+      "crypto"
+    ]
+  },
+  {
+    "path": "/api/parcels/:id/assign-locker",
+    "method": "PATCH",
+    "group": "Parcels",
+    "auth": "admin-only",
+    "description": "Assign an available locker to a pending parcel, setting OTP code and creating student notification (admin only).",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+      },
+      "pathParams": {
+        "id": "UUID of the parcel"
+      },
+      "body": {
+        "lockerId": { "type": "string", "required": true, "description": "UUID of the locker to assign" }
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "otp": "6-digit OTP code",
+          "data": {
+            "id": "UUID String",
+            "status": "ready",
+            "lockerId": "UUID String",
+            "lockerLabel": "String",
+            "otp": "6-digit OTP code",
+            "assignedAt": "ISO Date String",
+            "expiresAt": "ISO Date String"
+          }
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "body": { "success": false, "error": "lockerId is required | Parcel is already <status>" }
+        },
+        {
+          "status": 401,
+          "body": { "success": false, "error": "No token provided" }
+        },
+        {
+          "status": 403,
+          "body": { "success": false, "error": "Admin access required" }
+        },
+        {
+          "status": 404,
+          "body": { "success": false, "error": "Parcel not found | Locker not found" }
+        },
+        {
+          "status": 409,
+          "body": { "success": false, "error": "Locker is already occupied" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/parcels.js",
+      "backend/src/middleware/auth.js"
+    ],
+    "dependencies": [
+      "crypto"
+    ]
+  },
+  {
+    "path": "/api/parcels/:id/collect",
+    "method": "PATCH",
+    "group": "Parcels",
+    "auth": "authenticated (owner or admin)",
+    "description": "Collect a parcel from a locker by validating the OTP.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+      },
+      "pathParams": {
+        "id": "UUID of the parcel"
+      },
+      "body": {
+        "otp": { "type": "string", "required": true, "description": "6-digit OTP code" }
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "id": "UUID String",
+            "status": "collected",
+            "collectedAt": "ISO Date String"
+          }
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "body": { "success": false, "error": "OTP is required | Parcel is not ready for pickup (status: <status>) | Invalid OTP. Please try again." }
+        },
+        {
+          "status": 401,
+          "body": { "success": false, "error": "No token provided" }
+        },
+        {
+          "status": 403,
+          "body": { "success": false, "error": "Access denied" }
+        },
+        {
+          "status": 404,
+          "body": { "success": false, "error": "Parcel not found" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/parcels.js",
+      "backend/src/middleware/auth.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/parcels/:id/release",
+    "method": "PATCH",
+    "group": "Parcels",
+    "auth": "admin-only",
+    "description": "Release a locker by marking the associated parcel as expired (admin only).",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "pathParams": {
+        "id": "UUID of the parcel"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "id": "UUID String",
+            "status": "expired",
+            "lockerId": null,
+            "lockerLabel": null,
+            "otp": null
+          }
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "body": { "success": false, "error": "No token provided" }
+        },
+        {
+          "status": 403,
+          "body": { "success": false, "error": "Admin access required" }
+        },
+        {
+          "status": 404,
+          "body": { "success": false, "error": "Parcel not found" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/parcels.js",
+      "backend/src/middleware/auth.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/parcels/:id",
+    "method": "DELETE",
+    "group": "Parcels",
+    "auth": "admin-only",
+    "description": "Delete a parcel record and free its locker if occupied (admin only).",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "pathParams": {
+        "id": "UUID of the parcel"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Parcel deleted"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "body": { "success": false, "error": "No token provided" }
+        },
+        {
+          "status": 403,
+          "body": { "success": false, "error": "Admin access required" }
+        },
+        {
+          "status": 404,
+          "body": { "success": false, "error": "Parcel not found" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/parcels.js",
+      "backend/src/middleware/auth.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/lockers",
+    "method": "GET",
+    "group": "Lockers",
+    "auth": "authenticated (any)",
+    "description": "List all lockers sorted by section and label.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": [
+            {
+              "id": "UUID String",
+              "label": "String",
+              "section": "String",
+              "size": "small | medium | large",
+              "isOccupied": "boolean",
+              "currentParcelId": "UUID String | null"
+            }
+          ]
+        }
+      }
+    },
+    "associated_files": [
+      "backend/src/routes/lockers.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/lockers/available",
+    "method": "GET",
+    "group": "Lockers",
+    "auth": "authenticated (any)",
+    "description": "List all available (unoccupied) lockers, optionally filtered by size.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "queryParams": {
+        "size": { "type": "string", "required": false, "description": "Locker size filter ('small', 'medium', 'large')" }
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": [
+            {
+              "id": "UUID String",
+              "label": "String",
+              "section": "String",
+              "size": "small | medium | large",
+              "isOccupied": false,
+              "currentParcelId": null
+            }
+          ]
+        }
+      }
+    },
+    "associated_files": [
+      "backend/src/routes/lockers.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/lockers/:id",
+    "method": "GET",
+    "group": "Lockers",
+    "auth": "authenticated (any)",
+    "description": "Retrieve details of a single locker by ID.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "pathParams": {
+        "id": "UUID of the locker"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "id": "UUID String",
+            "label": "String",
+            "section": "String",
+            "size": "small | medium | large",
+            "isOccupied": "boolean",
+            "currentParcelId": "UUID String | null"
+          }
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "body": { "success": false, "error": "Locker not found" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/lockers.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/lockers/stats/summary",
+    "method": "GET",
+    "group": "Lockers",
+    "auth": "admin-only",
+    "description": "Retrieve comprehensive usage statistics for all lockers (admin only).",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "total": "number",
+            "occupied": "number",
+            "available": "number",
+            "occupancyRate": "number (percentage)",
+            "bySection": [
+              { "section": "String", "total": "number", "occupied": "number", "available": "number" }
+            ],
+            "bySize": [
+              { "size": "String", "total": "number", "occupied": "number" }
+            ]
+          }
+        }
+      }
+    },
+    "associated_files": [
+      "backend/src/routes/lockers.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/notifications",
+    "method": "GET",
+    "group": "Notifications",
+    "auth": "authenticated (any)",
+    "description": "List notifications. Students see their own notifications; admins see all up to 100 limit.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": [
+            {
+              "id": "UUID String",
+              "studentId": "UUID String",
+              "title": "String",
+              "message": "String",
+              "type": "alert | system",
+              "isRead": "boolean",
+              "createdAt": "ISO Date String"
+            }
+          ]
+        }
+      }
+    },
+    "associated_files": [
+      "backend/src/routes/notifications.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/notifications/unread-count",
+    "method": "GET",
+    "group": "Notifications",
+    "auth": "authenticated (any)",
+    "description": "Get the count of unread notifications for students (own) or admins (global).",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "count": "number"
+        }
+      }
+    },
+    "associated_files": [
+      "backend/src/routes/notifications.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/notifications/:id/read",
+    "method": "PATCH",
+    "group": "Notifications",
+    "auth": "authenticated (owner or admin)",
+    "description": "Mark a notification as read.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "pathParams": {
+        "id": "UUID of the notification"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "id": "UUID String",
+            "isRead": true
+          }
+        }
+      },
+      "errors": [
+        {
+          "status": 403,
+          "body": { "success": false, "error": "Access denied" }
+        },
+        {
+          "status": 404,
+          "body": { "success": false, "error": "Notification not found" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/notifications.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/notifications/read-all",
+    "method": "PATCH",
+    "group": "Notifications",
+    "auth": "authenticated (any)",
+    "description": "Mark all notifications as read for current user (student) or all system notifications (admin).",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "All notifications marked as read"
+        }
+      }
+    },
+    "associated_files": [
+      "backend/src/routes/notifications.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/notifications/:id",
+    "method": "DELETE",
+    "group": "Notifications",
+    "auth": "authenticated (owner or admin)",
+    "description": "Delete a notification.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "pathParams": {
+        "id": "UUID of the notification"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Notification deleted"
+        }
+      },
+      "errors": [
+        {
+          "status": 403,
+          "body": { "success": false, "error": "Access denied" }
+        },
+        {
+          "status": 404,
+          "body": { "success": false, "error": "Notification not found" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/notifications.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/students",
+    "method": "GET",
+    "group": "Students",
+    "auth": "admin-only",
+    "description": "List all registered students sorted by name (admin only).",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": [
+            {
+              "id": "UUID String",
+              "name": "String",
+              "email": "String",
+              "phone": "String",
+              "studentId": "String",
+              "createdAt": "ISO Date String"
+            }
+          ]
+        }
+      }
+    },
+    "associated_files": [
+      "backend/src/routes/students.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/students/search",
+    "method": "GET",
+    "group": "Students",
+    "auth": "admin-only",
+    "description": "Search registered students by name, email, or student ID (admin only). Limit 20 results.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "queryParams": {
+        "q": { "type": "string", "required": false, "description": "Search query keyword" }
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": [
+            {
+              "id": "UUID String",
+              "name": "String",
+              "email": "String",
+              "phone": "String",
+              "studentId": "String",
+              "createdAt": "ISO Date String"
+            }
+          ]
+        }
+      }
+    },
+    "associated_files": [
+      "backend/src/routes/students.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/students/:id",
+    "method": "GET",
+    "group": "Students",
+    "auth": "authenticated (owner or admin)",
+    "description": "Get details of a single student by ID.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "pathParams": {
+        "id": "UUID of the student"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "id": "UUID String",
+            "name": "String",
+            "email": "String",
+            "phone": "String",
+            "studentId": "String",
+            "createdAt": "ISO Date String"
+          }
+        }
+      },
+      "errors": [
+        {
+          "status": 403,
+          "body": { "success": false, "error": "Access denied" }
+        },
+        {
+          "status": 404,
+          "body": { "success": false, "error": "Student not found" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/students.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/students/:id/parcels",
+    "method": "GET",
+    "group": "Students",
+    "auth": "authenticated (owner or admin)",
+    "description": "Get all parcels associated with a student, sorted by arrival date.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "pathParams": {
+        "id": "UUID of the student"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": [
+            {
+              "id": "UUID String",
+              "trackingId": "String",
+              "studentId": "UUID String",
+              "studentName": "String",
+              "description": "String",
+              "deliveryService": "String",
+              "lockerId": "UUID String | null",
+              "lockerLabel": "String | null",
+              "otp": "String | null",
+              "status": "pending | ready | collected | expired",
+              "arrivedAt": "ISO Date String",
+              "assignedAt": "ISO Date String | null",
+              "collectedAt": "ISO Date String | null",
+              "expiresAt": "ISO Date String | null"
+            }
+          ]
+        }
+      },
+      "errors": [
+        {
+          "status": 403,
+          "body": { "success": false, "error": "Access denied" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/students.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/students/:id",
+    "method": "DELETE",
+    "group": "Students",
+    "auth": "admin-only",
+    "description": "Delete a student account and their associated notifications (admin only).",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "pathParams": {
+        "id": "UUID of the student"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Student removed"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "body": { "success": false, "error": "Student not found" }
+        }
+      ]
+    },
+    "associated_files": [
+      "backend/src/routes/students.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/dashboard/stats",
+    "method": "GET",
+    "group": "Dashboard",
+    "auth": "admin-only",
+    "description": "Get general stats breakdown for the admin dashboard.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "parcels": {
+              "total": "number",
+              "pending": "number",
+              "ready": "number",
+              "collectedToday": "number",
+              "expired": "number"
+            },
+            "lockers": {
+              "total": "number",
+              "occupied": "number",
+              "available": "number",
+              "occupancyRate": "number"
+            },
+            "students": {
+              "total": "number"
+            },
+            "recentActivity": [
+              { "date": "String (YYYY-MM-DD)", "count": "number" }
+            ],
+            "statusBreakdown": [
+              { "status": "String", "count": "number" }
+            ]
+          }
+        }
+      }
+    },
+    "associated_files": [
+      "backend/src/routes/dashboard.js"
+    ],
+    "dependencies": []
+  },
+  {
+    "path": "/api/dashboard/student-stats",
+    "method": "GET",
+    "group": "Dashboard",
+    "auth": "authenticated (student)",
+    "description": "Get individual parcel stats for the logged-in student.",
+    "request": {
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    },
+    "response": {
+      "success": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "total": "number",
+            "pending": "number",
+            "ready": "number",
+            "collected": "number",
+            "unreadNotifications": "number",
+            "recentParcels": [
+              {
+                "id": "UUID String",
+                "trackingId": "String",
+                "description": "String",
+                "status": "pending | ready | collected | expired",
+                "arrivedAt": "ISO Date String",
+                "lockerLabel": "String | null"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "associated_files": [
+      "backend/src/routes/dashboard.js"
+    ],
+    "dependencies": []
+  }
+]

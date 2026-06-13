@@ -1,0 +1,101 @@
+Test Case ID,Category,Test Scenario,Test Steps,Expected Result,Type (Manual/Automated),Execution Status
+TC-W01,Onboarding,Verify page title and branding,1. Load the landing page. 2. Verify window title and page header.,Window title and header should contain 'ParcelVault' branding.,Automated,Passed
+TC-W02,Onboarding,Verify hero section renders correctly,1. Navigate to landing page. 2. Inspect visibility of logo and main headline.,The main logo and introductory text should be fully visible and aligned.,Automated,Passed
+TC-W03,Onboarding,Verify carousel navigation buttons,1. Locate carousel controls. 2. Click the 'Next' arrow.,Carousel should transition smoothly to slide 2.,Automated,Passed
+TC-W04,Onboarding,Verify carousel dot indicator behavior,1. On landing page click dot index 3. 2. Verify active slide.,Slide 3 should become active and indicator style should update.,Automated,Passed
+TC-W05,Onboarding,Verify Skip button functionality,1. Click 'Skip' button on onboarding slide 1.,Page should bypass all onboarding slides and load the Welcome/Selection screen.,Automated,Passed
+TC-W06,Onboarding,Verify 'Get Started' button on last slide,1. Advance carousel to the final slide. 2. Click 'Get Started'.,Should navigate to the Welcome/Login selection screen.,Automated,Passed
+TC-W07,Onboarding,Verify responsiveness of onboarding page,1. Resize viewport to mobile width (360px). 2. Check layout.,All text and buttons must wrap cleanly without horizontal scrollbars.,Automated,Passed
+TC-W08,Onboarding,Verify theme configuration on landing,1. Inspect page elements for CSS variables/custom styles.,Default brand colors and premium styling should render correctly.,Automated,Passed
+TC-W09,Onboarding,Verify image assets render properly,1. Open landing page. 2. Check all image and SVG element dimensions.,No broken image icons should be displayed; SVGs must have non-zero dimensions.,Automated,Passed
+TC-W10,Onboarding,Verify browser refresh does not break onboarding state,1. Navigate to onboarding slide 2. 2. Refresh page.,The onboarding flow should reload gracefully without crashing.,Automated,Passed
+TC-W11,Onboarding,Verify footer links presence,1. Scroll to the bottom of the welcome page. 2. Check footer text.,Footer text and copyrights should be present.,Automated,Passed
+TC-W12,Onboarding,Verify student login button action,1. Click 'Student Login' on welcome page.,Should open the Student Login form page.,Automated,Passed
+TC-W13,Onboarding,Verify admin access link action,1. Click 'Admin Access' link on welcome page.,Should open the Admin Login form page.,Automated,Passed
+TC-W14,Onboarding,Verify create student account link action,1. Click 'Create Student Account' on welcome page.,Should open the Student Registration form page.,Automated,Passed
+TC-W15,Onboarding,Verify URL path updates on routing,1. Click Student Login. 2. Verify browser address bar.,URL should change to reflect the login route.,Automated,Passed
+TC-W16,Authentication,Verify Student Login with correct credentials,1. Enter valid student email. 2. Enter valid password. 3. Click Login.,Token should be stored and user redirected to student dashboard.,Automated,Passed
+TC-W17,Authentication,Verify Admin Login with correct credentials,1. Enter valid admin email. 2. Enter valid password. 3. Click Login.,Token should be stored and user redirected to admin dashboard.,Automated,Passed
+TC-W18,Authentication,Verify login failure with invalid email,1. Enter unregistered email. 2. Enter random password. 3. Click Login.,Should display 'Invalid email or password' error message.,Automated,Passed
+TC-W19,Authentication,Verify login failure with incorrect password,1. Enter registered email. 2. Enter wrong password. 3. Click Login.,Should display 'Invalid email or password' error message.,Automated,Passed
+TC-W20,Authentication,Verify blank login submission,1. Leave email and password blank. 2. Click Login.,Should show validation message: 'Email and password are required'.,Automated,Passed
+TC-W21,Authentication,Verify email format validation in register,1. Enter invalid email (e.g. 'user@domain'). 2. Attempt registration.,Should display 'Please enter a valid email address' error.,Automated,Passed
+TC-W22,Authentication,Verify password min-length requirement,1. Fill other fields. 2. Enter password under 6 chars. 3. Register.,Should display 'Password must be at least 6 characters'.,Automated,Passed
+TC-W23,Authentication,Verify password complexity (both letters and numbers),1. Enter password with only letters (e.g. 'secret'). 2. Register.,Should display 'Password must contain both letters and numbers'.,Automated,Passed
+TC-W24,Authentication,Verify student registration missing phone,1. Fill student details except phone. 2. Attempt registration.,Should display 'Phone and student ID are required...'.,Automated,Passed
+TC-W25,Authentication,Verify phone validation format,1. Enter phone number with 5 digits. 2. Click register.,Should reject and show 'Please enter a valid phone number (min 10 digits)'.,Automated,Passed
+TC-W26,Authentication,Verify registration with duplicate email,1. Attempt to register a student with an already registered email.,Should display conflict error: 'Email already registered'.,Automated,Passed
+TC-W27,Authentication,Verify registration with duplicate Student ID,1. Attempt to register student with an already registered ID.,Should display conflict error: 'Student ID already registered'.,Automated,Passed
+TC-W28,Authentication,Verify register role conditional fields,1. Toggle role to Admin. 2. Check if student ID/phone are optional.,Student ID and phone should not block Admin registration.,Automated,Passed
+TC-W29,Authentication,Verify password visibility toggle,1. Type text in password field. 2. Click show/hide icon.,Password input type should switch between 'password' and 'text'.,Automated,Passed
+TC-W30,Authentication,Verify session persistence after refresh,1. Log in. 2. Refresh browser window. 3. Check dashboard.,User session should remain active; should not redirect to login.,Automated,Passed
+TC-W31,Authentication,Verify session clearing on manual logout,1. Click logout button. 2. Verify stored token. 3. Refresh.,Token should be deleted; user redirected back to login screen.,Automated,Passed
+TC-W32,Authentication,Verify token invalidation on backend error,1. Corrupt the JWT token in local storage. 2. Load dashboard.,Should automatically redirect to login with 'Invalid or expired token'.,Automated,Passed
+TC-W33,Authentication,Verify password fields are masked by default,1. Inspect the password input element.,Input element type attribute should be 'password'.,Automated,Passed
+TC-W34,Authentication,Verify registration success for new student,1. Fill unique fields. 2. Click register.,Account created; token generated; redirected to dashboard.,Automated,Passed
+TC-W35,Authentication,Verify registration success for new admin,1. Fill unique fields, select admin role. 2. Click register.,Admin account created and logged in.,Automated,Passed
+TC-W36,Student Dashboard,Verify dashboard stats metrics fetch,1. Login as student. 2. Check stats boxes.,Stats for total, pending, ready, and collected should display numbers.,Automated,Passed
+TC-W37,Student Dashboard,Verify student notifications count badge,1. Check notification icon badge in navbar.,Badge number should match the unread notification count.,Automated,Passed
+TC-W38,Student Dashboard,Verify recent parcels list rendering,1. Navigate to student dashboard. 2. Look for recent packages section.,Displays list of up to 5 most recent parcels with status badges.,Automated,Passed
+TC-W39,Student Dashboard,Verify empty state message on new accounts,1. Login as new student with no parcels. 2. Inspect dashboard.,Should display 'No parcels found' or similar friendly text.,Automated,Passed
+TC-W40,Student Dashboard,Verify navigation links work correctly,1. Click 'My Parcels' in navbar. 2. Check active state.,Should navigate to parcels page and highlight link.,Automated,Passed
+TC-W41,Student Dashboard,Verify profile dropdown displays name,1. Inspect header user profile button.,Logged-in student name and role should be displayed.,Automated,Passed
+TC-W42,Student Dashboard,Verify responsive sidebar collapse,1. Set width to tablet view (768px). 2. Observe navigation.,Navbar should collapse into hamburger menu or bottom bar.,Automated,Passed
+TC-W43,Student Dashboard,Verify active status color coding,1. Locate parcels list. 2. Inspect badge colors.,'ready' status should be green/alert; 'pending' should be orange/warn.,Automated,Passed
+TC-W44,Student Dashboard,Verify date formatting on dashboard,1. Check arrivedAt timestamp.,Timestamps should be formatted as human-readable local dates.,Automated,Passed
+TC-W45,Student Dashboard,Verify locker labels presence in list,1. Check ready parcels. 2. Verify locker label is printed.,Assigned locker label (e.g. 'A-10') must be clearly visible.,Automated,Passed
+TC-W46,Student Dashboard,Verify student profile page fields,1. Navigate to Student Profile. 2. Check fields.,Should show Name, Email, Phone, and Student ID (read-only).,Automated,Passed
+TC-W47,Student Dashboard,Verify back button from subpages,1. Navigate to parcels detail page. 2. Click 'Back to Dashboard'.,Should return user to student dashboard.,Automated,Passed
+TC-W48,Student Dashboard,Verify notification details matching,1. Check notification message text. 2. Match with parcel tracking.,Locker label and OTP mentioned in notification must match parcel data.,Automated,Passed
+TC-W49,Student Dashboard,Verify refresh button action on dashboard,1. Click dashboard refresh icon. 2. Check API call trigger.,Dashboard data should trigger a reload query.,Automated,Passed
+TC-W50,Student Dashboard,Verify secure page protection,1. Log out. 2. Direct navigate to '/student-stats' URL.,Should block view and redirect to welcome/login screen.,Automated,Passed
+TC-W51,Admin Dashboard,Verify admin stats counters,1. Login as admin. 2. Verify total, pending, ready, and collected stats.,Counts should match the sum of database records.,Automated,Passed
+TC-W52,Admin Dashboard,Verify admin occupancy rate card,1. Check lockers rate widget.,Locker occupancy rate should show correct percentage.,Automated,Passed
+TC-W53,Admin Dashboard,Verify recent activity list rendering,1. View dashboard recent activity timeline.,Displays arrivals and pickups chronologically.,Automated,Passed
+TC-W54,Admin Dashboard,Verify chart graphics load,1. View activity chart section.,Chart canvasses should render without throwing console errors.,Automated,Passed
+TC-W55,Admin Dashboard,Verify navigation links for admin controls,1. Click 'Locker Management'. 2. Check URL.,Should navigate to lockers grid view.,Automated,Passed
+TC-W56,Admin Dashboard,Verify total students card redirect,1. Click 'Students' counter card.,Should redirect admin to students registry page.,Automated,Passed
+TC-W57,Admin Dashboard,Verify status breakdown counts matching,1. Check breakdown values. 2. Run db query.,Counts for each status must sum up to total parcels.,Automated,Passed
+TC-W58,Admin Dashboard,Verify live notification updates,1. Log in admin. 2. Trigger notification from backend.,Unread notification badge should increment immediately.,Automated,Passed
+TC-W59,Admin Dashboard,Verify stats for collected today,1. Mark a parcel collected. 2. Observe Collected Today card.,Counter should increment by 1.,Automated,Passed
+TC-W60,Admin Dashboard,Verify stats for expired packages,1. Mark a parcel expired. 2. Check Expired counter.,Counter should increment.,Automated,Passed
+TC-W61,Admin Dashboard,Verify responsiveness of admin grid layout,1. Change viewport width. 2. Observe admin panels.,Grid items must rearrange cleanly without overlaps.,Automated,Passed
+TC-W62,Admin Dashboard,Verify unauthorized student access block,1. Log in as student. 2. Try URL '/api/dashboard/stats'.,Should return 403 status code with 'Admin access required'.,Automated,Passed
+TC-W63,Admin Dashboard,Verify quick search panel focus,1. Click global search bar. 2. Verify keyboard focus.,Search input should gain active focus state.,Automated,Passed
+TC-W64,Admin Dashboard,Verify date range inputs in charts,1. Set date range filters on analytics page.,Charts should update to reflect the selected date range.,Automated,Passed
+TC-W65,Admin Dashboard,Verify quick actions shortcuts,1. Click 'Log New Parcel' on dashboard header.,Should immediately pop open the add parcel dialog.,Automated,Passed
+TC-W66,Admin Dashboard,Verify logout workflow from admin view,1. Click Admin Logout. 2. Verify redirections.,Admin token is cleared and user is redirected to welcome screen.,Automated,Passed
+TC-W67,Admin Dashboard,Verify stats update upon logging new parcel,1. Log new parcel. 2. Check pending counter.,Pending parcels count should increment immediately.,Automated,Passed
+TC-W68,Admin Dashboard,Verify database backup action trigger,1. Click backup link (if available).,Triggers secure database snapshot.,Automated,Passed
+TC-W69,Admin Dashboard,Verify dark/light theme switch,1. Click theme toggle button. 2. Inspect HTML class.,Theme class should change; styles must adjust appropriately.,Automated,Passed
+TC-W70,Admin Dashboard,Verify error boundary recovery,1. Simulate dashboard query failure.,Error fallback view should display with a reload button.,Automated,Passed
+TC-W71,Parcel Management,Verify admin log parcel form validation,1. Open add parcel form. 2. Click save without inputs.,Should validate studentId, description, and deliveryService fields.,Automated,Passed
+TC-W72,Parcel Management,Verify auto-generation of tracking ID,1. Log parcel without tracking ID.,Tracking ID should be auto-created using 'PKG-2026-XXXXX' format.,Automated,Passed
+TC-W73,Parcel Management,Verify new parcel shows in pending list,1. Log new parcel. 2. Inspect admin parcels list.,Parcel should appear at top with status 'pending'.,Automated,Passed
+TC-W74,Parcel Management,Verify assign locker select list,1. Click assign locker on pending parcel. 2. Open dropdown.,Dropdown should show only available/unoccupied lockers.,Automated,Passed
+TC-W75,Parcel Management,Verify locker assignment updates status,1. Select locker. 2. Click assign. 3. Check status.,Parcel status should change to 'ready'.,Automated,Passed
+TC-W76,Parcel Management,Verify OTP generation upon assignment,1. Assign locker to parcel. 2. Check parcel details.,A 6-digit numeric OTP should be generated and visible to admin.,Automated,Passed
+TC-W77,Parcel Management,Verify student receives notification on assignment,1. Log in student. 2. Check notification panel after assignment.,Notification should state locker label and OTP code.,Automated,Passed
+TC-W78,Parcel Management,Verify locker state becomes occupied,1. Assign locker A-12 to parcel. 2. Verify locker A-12 status.,Locker grid should show A-12 as occupied (color red/status true).,Automated,Passed
+TC-W79,Parcel Management,Verify student OTP validation for pickup,1. Student inputs matching OTP on collect parcel form. 2. Submits.,Collection succeeds; status changes to 'collected'.,Automated,Passed
+TC-W80,Parcel Management,Verify student incorrect OTP handling,1. Student inputs wrong OTP. 2. Submits.,Should reject with 'Invalid OTP. Please try again'.,Automated,Passed
+TC-W81,Parcel Management,Verify locker release on collection,1. Complete parcel pickup. 2. Check locker occupancy.,Locker should be released (isOccupied = false, currentParcelId = null).,Automated,Passed
+TC-W82,Parcel Management,Verify admin manual release of parcel (expire),1. Click release on parcel. 2. Inspect parcel status.,Status changes to 'expired'; locker is released/freed.,Automated,Passed
+TC-W83,Parcel Management,Verify admin delete parcel,1. Click delete icon on parcel. 2. Confirm modal dialog.,Parcel record removed from list; associated locker freed if occupied.,Automated,Passed
+TC-W84,Parcel Management,Verify student cannot see other students' parcels,1. Log in Student A. 2. Request details of Student B's parcel.,Should reject request with 403 status.,Automated,Passed
+TC-W85,Parcel Management,Verify parcel status filter works,1. Toggle filters: 'pending', 'ready', 'collected'. 2. Check rows.,List should narrow down to show matching statuses only.,Automated,Passed
+TC-W86,Locker Management,Verify locker list displays all attributes,1. Navigate to lockers list. 2. Check grid properties.,Label, section, size, and occupancy status must display.,Automated,Passed
+TC-W87,Locker Management,Verify locker size filter,1. Filter lockers by size 'large'.,Only large lockers should appear in grid.,Automated,Passed
+TC-W88,Locker Management,Verify locker section groupings,1. Check grouping titles.,Lockers should be grouped by section (A, B, C etc) dynamically.,Automated,Passed
+TC-W89,Locker Management,Verify locker occupier details hover,1. Hover over occupied locker in grid.,Should display current occupant student name and package tracking ID.,Automated,Passed
+TC-W90,Locker Management,Verify double booking prevention,1. Try to assign already occupied locker using intercepted API request.,API should return 409 status with 'Locker is already occupied'.,Automated,Passed
+TC-W91,Locker Management,Verify locker creation rules,1. Verify backend setup scripts for lockers table initialization.,Table initializes with pre-configured sections and unique labels.,Automated,Passed
+TC-W92,Locker Management,Verify locker deletion constraint,1. Try to delete locker with active parcel.,Should reject or release parcel first.,Automated,Passed
+TC-W93,Locker Management,Verify locker availability count updates dynamically,1. Assign a locker. 2. Inspect availability counter.,Available count should decrement by 1.,Automated,Passed
+TC-W94,Locker Management,Verify locker statuses map to correct color codes,1. Check CSS colors. 2. Occupied = red/rose, Available = green/emerald.,Grid boxes must reflect color guidelines.,Automated,Passed
+TC-W95,Locker Management,Verify locker stats export,1. Click summary export option.,Should download stats table or report.,Automated,Passed
+TC-W96,System integration,Verify health endpoint response,1. Request '/api/health'. 2. Inspect response.,Should return 200 with ok status and version.,Automated,Passed
+TC-W97,System integration,Verify CORS configuration,1. Send request with origin different from domain.,Server should allow headers and credentials as configured.,Automated,Passed
+TC-W98,System integration,Verify global 404 handler,1. Navigate to '/api/invalidroute'.,Should return 404 with JSON: 'Route not found'.,Automated,Passed
+TC-W99,System integration,Verify error handler catches server faults,1. Force DB error. 2. Request route.,Should output 500 status with JSON: 'Internal server error'.,Automated,Passed
+TC-W100,System integration,Verify database concurrent queries capability,1. Perform simultaneous multiple reads. 2. Inspect performance.,SQLite database handles connections gracefully without locking.,Automated,Passed

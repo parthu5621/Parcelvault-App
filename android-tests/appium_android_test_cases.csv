@@ -1,0 +1,47 @@
+Test Case ID,Category,Test Scenario,Test Steps,Expected Result,Type (Manual/Automated),Execution Status
+TC-A01,App Launch & Onboarding,Verify APK launches and shows splash screen,1. Launch target APK. 2. Verify header branding.,Splash screen renders and display contains 'ParcelVault' branding.,Automated,Passed
+TC-A02,App Launch & Onboarding,Verify auto-transition from splash to onboarding,1. Launch app. 2. Wait 3 seconds without interacting.,App switches from splash view to onboarding slider screen automatically.,Automated,Passed
+TC-A03,App Launch & Onboarding,Verify Onboarding slide 1 page contents,1. Open first slide of onboarding. 2. Verify texts.,Header texts, descriptive paragraphs, and slide progress indicator load.,Automated,Passed
+TC-A04,App Launch & Onboarding,Verify Next button transitions to onboarding slide 2,1. Locate and click 'Next' button.,Onboarding screen transitions to second slide showing locker details.,Automated,Passed
+TC-A05,App Launch & Onboarding,Verify Next button transitions to onboarding slide 3,1. From slide 2 click 'Next' button.,Onboarding screen transitions to third slide displaying pickup details.,Automated,Passed
+TC-A06,App Launch & Onboarding,Verify Get Started navigates to Welcome selection,1. Click 'Get Started' button on final slide.,App redirects to selection screen (Student Login, Register, Admin Access).,Automated,Passed
+TC-A07,App Launch & Onboarding,Verify Welcome screen options display,1. Observe Welcome page.,Shows buttons: 'Student Login', 'Create Student Account', 'Admin Access'.,Automated,Passed
+TC-A08,App Launch & Onboarding,Verify Android back button behavior,1. On Welcome screen click hardware Back key.,Android system processes back navigation without causing application crash.,Automated,Passed
+TC-A09,Authentication,Verify Student Login form fields,1. Click 'Student Login' button. 2. Inspect inputs.,Renders inputs for Email, Password, and a 'Sign In' button.,Automated,Passed
+TC-A10,Authentication,Verify empty credentials submission error,1. Click 'Student Login'. 2. Click 'Sign In' immediately.,Displays alert: 'Please fill all fields'.,Automated,Passed
+TC-A11,Authentication,Verify incorrect credentials handling,1. Enter unregistered email. 2. Enter invalid password. 3. Click 'Sign In'.,Displays failure warning: 'Invalid email or password'.,Automated,Passed
+TC-A12,Authentication,Verify Student Login with valid credentials,1. Input correct student email. 2. Input correct password. 3. Sign In.,Authenticates user and redirects to Student Dashboard.,Automated,Passed
+TC-A13,Authentication,Verify Password input characters masked,1. View password input element type.,Verify type attribute is set to 'password'.,Automated,Passed
+TC-A14,Authentication,Verify Password visibility toggle,1. Type text in password. 2. Tap Eye icon.,Input characters display in plain text; field type toggles to 'text'.,Automated,Passed
+TC-A15,Authentication,Verify Forgot Password redirection,1. Click 'Forgot password?' link.,Redirects student to Forgot Password entry screen.,Automated,Passed
+TC-A16,Authentication,Verify Registration form layout,1. Tap 'Create Student Account'. 2. Verify inputs.,Shows fields: Name, Email, Phone, Student ID, Password, Confirm Password.,Automated,Passed
+TC-A17,Authentication,Verify mismatch password register block,1. Fill fields. 2. Input mismatching passwords. 3. Click submit.,Registration rejects with error message: 'Passwords do not match'.,Automated,Passed
+TC-A18,Authentication,Verify register complexity requirements,1. Try password with letters only. 2. Verify password checks.,Rejects showing message: 'Password must contain both letters and numbers'.,Automated,Passed
+TC-A19,Authentication,Verify registration with duplicate email,1. Try registering using a taken email address. 2. Submit.,Rejects registration with database conflict error message.,Automated,Passed
+TC-A20,Authentication,Verify registration with duplicate student ID,1. Try registering using a taken Student ID. 2. Submit.,Rejects registration with database conflict error message.,Automated,Passed
+TC-A21,Authentication,Verify Student Registration success,1. Fill valid unique info. 2. Click register button.,App displays success toast: 'Account created' and switches to login.,Automated,Passed
+TC-A22,Authentication,Verify Admin Login screen,1. Click 'Admin Access' link. 2. Verify form.,Displays inputs: Admin Email, Password, and 'Admin Sign In' button.,Automated,Passed
+TC-A23,Authentication,Verify Admin Login success,1. Enter admin credentials. 2. Submit form.,Redirects admin user to the Admin Dashboard screen.,Automated,Passed
+TC-A24,Authentication,Verify Admin Login fails with student credentials,1. Input student login in admin form. 2. Submit.,Fails with error message: 'Invalid admin credentials'.,Automated,Passed
+TC-A25,Student Dashboard,Verify dashboard headers and name greeting,1. Authenticate student. 2. Verify greeting.,Name greeting matches logged-in user name.,Automated,Passed
+TC-A26,Student Dashboard,Verify overview parcel counts,1. Inspect dashboard parcel count cards.,Cards display correct numbers for total, pending, ready, collected.,Automated,Passed
+TC-A27,Student Dashboard,Verify notification badge count updates,1. Verify notification bell badge.,Badge matches the unread notification count in database.,Automated,Passed
+TC-A28,Student Dashboard,Verify My Parcels list navigation,1. Tap My Parcels link.,Navigates to full parcels list screen.,Automated,Passed
+TC-A29,Student Dashboard,Verify individual parcel detail view,1. Tap a parcel item from list.,Shows modal detailing tracking, description, status, dates, locker label.,Automated,Passed
+TC-W30,Student Dashboard,Verify OTP code display for ready parcels,1. Open a ready parcel from list.,Locker label and 6-digit OTP code must display clearly.,Automated,Passed
+TC-A31,Student Dashboard,Verify OTP collection validation dialog,1. Open collect modal. 2. Input valid OTP. 3. Tap collect.,Shows success; status badges update to 'collected'.,Automated,Passed
+TC-A32,Student Dashboard,Verify notification list panel,1. Tap bell icon.,Renders notification panel with messages list.,Automated,Passed
+TC-A33,Student Dashboard,Verify mark notification as read,1. Open unread notification. 2. Mark read.,Unread status indicator clears; unread count badge updates.,Automated,Passed
+TC-A34,Student Dashboard,Verify delete single notification,1. Swipe/tap delete button on notification item.,Item is removed; alert history updates.,Automated,Passed
+TC-A35,Student Dashboard,Verify student logout flow,1. Open profile menu. 2. Tap Logout.,Token is cleared; app redirects to Welcome screen.,Automated,Passed
+TC-A36,Admin Dashboard,Verify admin stats metric cards,1. Authenticate admin. 2. Verify dashboard cards.,Shows total numbers, locker rates, and student registers.,Automated,Passed
+TC-A37,Admin Dashboard,Verify locker occupancy rate rendering,1. View occupancy rate card. 2. Compare database.,Calculated rate matches database lockers usage state.,Automated,Passed
+TC-A38,Admin Dashboard,Verify add parcel validation,1. Tap 'Add Parcel'. 2. Submit empty fields.,Fields studentId, description, deliveryService highlight as required.,Automated,Passed
+TC-A39,Admin Dashboard,Verify new parcel logs successfully,1. Fill parcel logging fields. 2. Tap save.,New parcel created in database as 'pending' status.,Automated,Passed
+TC-A40,Admin Dashboard,Verify locker assignment selection list,1. Open assign locker modal on a pending parcel. 2. Verify dropdown.,Shows list containing only unoccupied, vacant lockers.,Automated,Passed
+TC-A41,Admin Dashboard,Verify locker assignment execution,1. Select locker from dropdown. 2. Click assign.,Status shifts to 'ready'; OTP is generated; locker occupied status is set.,Automated,Passed
+TC-A42,Admin Dashboard,Verify locker occupancy details show in grid,1. Navigate to lockers tab. 2. Observe locker status.,Locker shows red/occupied indicator.,Automated,Passed
+TC-A43,Admin Dashboard,Verify admin manual package release (expire),1. Locate ready parcel. 2. Click release. 3. Confirm.,Parcel status set to 'expired'; locker is marked available.,Automated,Passed
+TC-A44,Admin Dashboard,Verify student list search and filters,1. Type character keyword in search. 2. Inspect list.,Displays only students whose names/IDs match search queries.,Automated,Passed
+TC-A45,Admin Dashboard,Verify student account deletion,1. Select student in list. 2. Click delete. 3. Confirm modal.,Student account and all notifications are purged.,Automated,Passed
+TC-A46,Admin Dashboard,Verify admin logout flow,1. Tap logout icon on navbar.,Admin session is closed and redirects to Welcome screen.,Automated,Passed

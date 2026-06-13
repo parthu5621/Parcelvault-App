@@ -1,0 +1,22 @@
+{
+  "name": "parcelvault-appium-android-tests",
+  "version": "1.0.0",
+  "description": "Appium E2E Tests for ParcelVault Android Application (Capacitor WebView)",
+  "type": "commonjs",
+  "scripts": {
+    "test": "mocha tests/**/*.test.js --timeout 60000 --reporter spec --exit",
+    "test:launch": "mocha tests/01_app_launch.test.js --timeout 60000 --reporter spec --exit",
+    "test:auth": "mocha tests/02_auth.test.js --timeout 60000 --reporter spec --exit",
+    "test:student": "mocha tests/03_student_flow.test.js --timeout 60000 --reporter spec --exit",
+    "test:admin": "mocha tests/04_admin_flow.test.js --timeout 60000 --reporter spec --exit",
+    "test:all": "mocha 'tests/**/*.test.js' --timeout 60000 --reporter spec --exit"
+  },
+  "dependencies": {
+    "webdriverio": "^9.0.0",
+    "@wdio/appium-service": "^9.0.0",
+    "appium": "^2.11.0"
+  },
+  "devDependencies": {
+    "mocha": "^10.7.3"
+  }
+}

@@ -1,0 +1,10 @@
+{
+    "student": {
+        "email": "parthu@saveetha.com",
+        "password": "Parthu21"
+    },
+    "admin": {
+        "email": "saveetha@gmail.com",
+        "password": "Saveetha21"
+    }
+}

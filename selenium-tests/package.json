@@ -1,0 +1,25 @@
+{
+  "name": "parcelvault-selenium-tests",
+  "version": "1.0.0",
+  "description": "Selenium E2E Tests for ParcelVault Web Application",
+  "type": "commonjs",
+  "scripts": {
+    "test": "mocha tests/**/*.test.js --timeout 30000 --reporter spec",
+    "test:auth": "mocha tests/02_auth.test.js --timeout 30000 --reporter spec",
+    "test:student": "mocha tests/03_student_flow.test.js --timeout 30000 --reporter spec",
+    "test:admin": "mocha tests/04_admin_flow.test.js --timeout 30000 --reporter spec",
+    "test:parcels": "mocha tests/05_parcel_management.test.js --timeout 30000 --reporter spec",
+    "test:onboarding": "mocha tests/01_onboarding.test.js --timeout 30000 --reporter spec",
+    "test:all": "mocha 'tests/**/*.test.js' --timeout 30000 --reporter spec --exit",
+    "test:headless": "HEADLESS=true mocha 'tests/**/*.test.js' --timeout 30000 --reporter spec --exit"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "selenium-webdriver": "^4.27.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "chromedriver": "^131.0.3",
+    "mocha": "^10.7.3"
+  }
+}
