@@ -4,7 +4,7 @@ import { MetricCard } from './MetricCard';
 import { CircularGauge } from './CircularGauge';
 import { CategoryCard } from './CategoryCard';
 import { Charts } from './Charts';
-import { Activity, AlertTriangle, CheckCircle, ShieldCheck } from 'lucide-react';
+import { BarChart3, X, Check, Zap, ShieldCheck } from 'lucide-react';
 
 export function Dashboard() {
   return (
@@ -17,10 +17,10 @@ export function Dashboard() {
         <Header />
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          <MetricCard title="TOTAL TEST CASES" value="1,248" icon={Activity} color="blue" />
-          <MetricCard title="ASSERTIONS PASSED" value="5,892" icon={CheckCircle} color="green" />
-          <MetricCard title="ASSERTIONS FAILED" value="14" icon={AlertTriangle} color="red" />
-          <MetricCard title="VERIFICATION RATE" value="98.9%" icon={ShieldCheck} color="cyan" />
+          <MetricCard title="TOTAL TEST CASES" value="120" icon={BarChart3} color="blue" />
+          <MetricCard title="ASSERTIONS PASSED" value="120" icon={Check} color="green" />
+          <MetricCard title="ASSERTIONS FAILED" value="0" icon={X} color="red" />
+          <MetricCard title="VERIFICATION RATE" value="100.0%" icon={Zap} color="orange" />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -42,12 +42,11 @@ export function Dashboard() {
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <CategoryCard title="Unit Testing" count="250/250" score={100} status="PERFECT" />
-              <CategoryCard title="Functional Testing" count="420/420" score={100} status="PERFECT" />
-              <CategoryCard title="UI/UX" count="156/156" score={100} status="PERFECT" />
-              <CategoryCard title="Validation" count="89/89" score={100} status="PERFECT" />
-              <CategoryCard title="Security" count="124/124" score={100} status="PERFECT" />
-              <CategoryCard title="API Testing" count="209/209" score={100} status="PERFECT" />
+              <CategoryCard title="Unit Testing" count="20/20" score={100} status="PERFECT" />
+              <CategoryCard title="Functional" count="30/30" score={100} status="PERFECT" />
+              <CategoryCard title="UI/UX" count="25/25" score={100} status="PERFECT" />
+              <CategoryCard title="Validation" count="25/25" score={100} status="PERFECT" />
+              <CategoryCard title="Security" count="20/20" score={100} status="PERFECT" />
             </div>
           </div>
         </div>
