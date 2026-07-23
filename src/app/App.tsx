@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Package, Bell, User, Home, QrCode, ArrowLeft, Mail, Lock, Phone,
   Building, Search, MapPin, Calendar, CheckCircle2, Clock, Settings,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { StoreProvider, useStore } from './store';
 import type { Parcel, Locker } from './store';
+import { getToken, parcelsApi } from './api';
 
 // ─── Screen Types ─────────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ export type Screen =
   | 'admin-login' | 'admin-dashboard' | 'add-parcel' | 'assign-locker'
   | 'generate-otp' | 'parcel-management' | 'user-management'
   | 'pending-pickup-requests' | 'completed-pickup' | 'reports-analytics'
-  | 'admin-notifications' | 'app-settings' | 'help-support' | 'faq'
+  | 'admin-notifications' | 'admin-feedback' | 'app-settings' | 'help-support' | 'faq'
   | 'contact-support' | 'feedback' | 'logout-confirmation';
 
 // ─── Root with Provider ───────────────────────────────────────────────────────
@@ -137,6 +138,7 @@ function AppInner() {
       {currentScreen === 'completed-pickup' && <CompletedPickupScreen navigate={navigate} />}
       {currentScreen === 'reports-analytics' && <ReportsAnalyticsScreen navigate={navigate} />}
       {currentScreen === 'admin-notifications' && <AdminNotificationsScreen navigate={navigate} />}
+      {currentScreen === 'admin-feedback' && <AdminFeedbackScreen navigate={navigate} />}
 
       {/* ── Shared Settings ── */}
       {currentScreen === 'app-settings' && <AppSettingsScreen navigate={navigate} />}
@@ -222,20 +224,431 @@ const SecondaryBtn = ({ children, onClick, className = '', id }: { children: Rea
   </button>
 );
 
+// ─── Saved Accounts Helper ───────────────────────────────────────────────────
+
+interface SavedAccount {
+  email: string;
+  role: 'student' | 'admin';
+  name?: string;
+  lastLogin?: string;
+}
+
+function getSavedAccountsList(): SavedAccount[] {
+  try {
+    // Remove legacy plain-text password keys for security compliance
+    localStorage.removeItem('pv_saved_password');
+    localStorage.removeItem('pv_admin_saved_password');
+
+    const raw = localStorage.getItem('pv_saved_accounts');
+    if (raw) {
+      const parsed: SavedAccount[] = JSON.parse(raw);
+      // Strip any legacy password fields if present
+      return parsed.map(({ email, role, name, lastLogin }) => ({
+        email,
+        role: role || 'student',
+        name: name || email.split('@')[0],
+        lastLogin
+      }));
+    }
+  } catch (e) {
+    console.error('Failed to parse saved accounts', e);
+  }
+
+  const savedEmail = localStorage.getItem('pv_saved_email');
+  if (savedEmail) {
+    return [{ email: savedEmail, role: 'student', name: savedEmail.split('@')[0] }];
+  }
+  return [];
+}
+
+function storeSavedAccount(account: { email: string; role: 'student' | 'admin'; name?: string }) {
+  try {
+    // Remove legacy plain-text password storage
+    localStorage.removeItem('pv_saved_password');
+    localStorage.removeItem('pv_admin_saved_password');
+
+    const existing = getSavedAccountsList().filter(a => a.email.toLowerCase() !== account.email.toLowerCase());
+    const newAccount: SavedAccount = {
+      email: account.email,
+      role: account.role,
+      name: account.name || account.email.split('@')[0],
+      lastLogin: new Date().toISOString()
+    };
+    existing.unshift(newAccount);
+    const trimmed = existing.slice(0, 5);
+    localStorage.setItem('pv_saved_accounts', JSON.stringify(trimmed));
+    if (account.role === 'student') {
+      localStorage.setItem('pv_saved_email', account.email);
+    } else {
+      localStorage.setItem('pv_admin_saved_email', account.email);
+    }
+  } catch (e) {
+    console.error('Failed to store saved account', e);
+  }
+}
+
+function deleteSavedAccount(email: string): SavedAccount[] {
+  try {
+    const updated = getSavedAccountsList().filter(a => a.email.toLowerCase() !== email.toLowerCase());
+    localStorage.setItem('pv_saved_accounts', JSON.stringify(updated));
+    return updated;
+  } catch (e) {
+    return [];
+  }
+}
+
+// ─── QR Code Visual Generator Component ────────────────────────────────────────
+
+function QRCodeVisual({ parcel, size = 200, className = '' }: { parcel: Parcel; size?: number; className?: string }) {
+  const qrDataString = useMemo(() => {
+    if (!parcel) return '';
+    if (parcel.qrCodeData) return parcel.qrCodeData;
+    return JSON.stringify({
+      system: 'ParcelVault',
+      parcelId: parcel.id || '',
+      bookingId: parcel.trackingId || '',
+      customerId: parcel.studentId || '',
+      lockerNumber: parcel.lockerLabel || 'Unassigned',
+      verificationToken: parcel.pickupToken || `PV-TOKEN-${(parcel.id || '0000').slice(0, 8)}`,
+      otp: parcel.otp || '',
+      createdAt: parcel.arrivedAt || new Date().toISOString()
+    });
+  }, [parcel]);
+
+  if (!parcel) return null;
+
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(qrDataString)}`;
+
+  return (
+    <div className={`flex flex-col items-center gap-2 ${className}`}>
+      <div className="bg-white p-3.5 rounded-2xl shadow-xl border border-zinc-200 flex flex-col items-center">
+        <img
+          src={qrImageUrl}
+          alt={`QR Pass for ${parcel.trackingId}`}
+          width={size}
+          height={size}
+          className="rounded-lg object-contain bg-white block"
+          loading="eager"
+        />
+        <span className="mt-2 text-[10px] font-mono text-zinc-600 tracking-wider font-bold">
+          {parcel.pickupToken || `PV-${parcel.trackingId}`}
+        </span>
+      </div>
+      <div className="text-center">
+        <p className="text-xs font-mono text-emerald-400 font-bold tracking-wider">
+          {parcel.pickupToken || `PV-TOKEN-${(parcel.id || '0000').slice(0, 8)}`}
+        </p>
+        <p className="text-[11px] text-zinc-400 mt-0.5">
+          Scan QR at kiosk or present OTP <span className="font-mono text-purple-400 font-bold">{parcel.otp}</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── QR Code Scanner Modal Component ──────────────────────────────────────────
+
+function QRScannerModal({ isOpen, onClose, onVerified, readyParcels = [], showToast }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onVerified: (parcel: Parcel) => void;
+  readyParcels?: Parcel[];
+  showToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
+}) {
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [manualInput, setManualInput] = useState('');
+  const [scanResult, setScanResult] = useState<{ success: boolean; parcel?: Parcel; error?: string } | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+
+  const scanIntervalRef = useRef<any>(null);
+
+  const stopCamera = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
+    setCameraActive(false);
+  };
+
+  const startCamera = async () => {
+    setCameraError(null);
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported in this browser environment');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      mediaStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCameraActive(true);
+
+      // Setup continuous scanning loop via BarcodeDetector API if supported
+      if ('BarcodeDetector' in window) {
+        try {
+          const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+          scanIntervalRef.current = setInterval(async () => {
+            if (videoRef.current && videoRef.current.readyState === 4 && !scanning) {
+              try {
+                const barcodes = await detector.detect(videoRef.current);
+                if (barcodes.length > 0 && barcodes[0].rawValue) {
+                  const raw = barcodes[0].rawValue;
+                  clearInterval(scanIntervalRef.current);
+                  scanIntervalRef.current = null;
+                  handleVerifyPayload(raw);
+                }
+              } catch (_e) {}
+            }
+          }, 400);
+        } catch (_err) {}
+      }
+    } catch (err: any) {
+      setCameraError(err.message || 'Camera permission denied or device camera unavailable');
+      setCameraActive(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      startCamera();
+    } else {
+      stopCamera();
+      setScanResult(null);
+      setManualInput('');
+    }
+    return () => stopCamera();
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if ('BarcodeDetector' in window) {
+      try {
+        const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        await img.decode();
+        const barcodes = await detector.detect(img);
+        if (barcodes.length > 0 && barcodes[0].rawValue) {
+          handleVerifyPayload(barcodes[0].rawValue);
+          return;
+        }
+      } catch (_err) {}
+    }
+    // Fallback if image detector unsupported: prompt manual paste or verify
+    showToast('Image uploaded. If QR not auto-read, paste token below.', 'info');
+  };
+
+  const handleVerifyPayload = async (payloadString: string) => {
+    if (!payloadString.trim()) {
+      showToast('Please enter or scan a valid QR code', 'error');
+      return;
+    }
+    setScanning(true);
+    setScanResult(null);
+    try {
+      const res = await parcelsApi.verifyQR({ qrData: payloadString.trim(), autoConfirm: true });
+      setScanning(false);
+      if (res.success && res.data) {
+        setScanResult({ success: true, parcel: res.data });
+        showToast('Student Identity Verified! Parcel released successfully. ✅', 'success');
+        onVerified(res.data);
+        onClose();
+      } else {
+        setScanResult({ success: false, error: res.error || 'Invalid QR Code. Student NOT verified.' });
+        showToast(res.error || 'Invalid QR Code. Student NOT verified.', 'error');
+      }
+    } catch (err: any) {
+      setScanning(false);
+      setScanResult({ success: false, error: err.message || 'QR Verification failed' });
+      showToast(err.message || 'QR Verification failed', 'error');
+    }
+  };
+
+  const handleConfirmPickup = async () => {
+    if (!scanResult?.parcel) return;
+    setScanning(true);
+    try {
+      const res = await parcelsApi.confirmQRPickup({
+        parcelId: scanResult.parcel.id,
+        token: scanResult.parcel.pickupToken || scanResult.parcel.otp || undefined
+      });
+      setScanning(false);
+      if (res.success) {
+        showToast('Parcel status updated to Picked Up!', 'success');
+        onVerified(res.data || scanResult.parcel);
+        onClose();
+      } else {
+        showToast(res.error || 'Failed to update pickup status', 'error');
+      }
+    } catch (err: any) {
+      setScanning(false);
+      showToast(err.message || 'Failed to update pickup status', 'error');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Camera className="w-5 h-5 text-purple-400" />
+            <h3 className="text-white font-bold text-base">QR Code Scanner</h3>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-zinc-400 hover:text-white rounded-full bg-zinc-800">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 overflow-y-auto space-y-5">
+          {/* Camera Viewport / Reticle */}
+          <div className="relative aspect-square w-full bg-zinc-950 rounded-2xl overflow-hidden border border-zinc-800 flex items-center justify-center">
+            {cameraActive ? (
+              <video ref={videoRef} autoPlay playsInline className="size-full object-cover" />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-6 text-center">
+                <Camera className="w-12 h-12 text-zinc-600 mb-2" />
+                <p className="text-zinc-400 text-xs">{cameraError || 'Camera preview inactive'}</p>
+                <button
+                  onClick={startCamera}
+                  className="mt-3 px-4 py-2 bg-purple-600/30 text-purple-300 border border-purple-500/40 rounded-xl text-xs font-semibold hover:bg-purple-600/40"
+                >
+                  Enable Camera
+                </button>
+              </div>
+            )}
+
+            {/* Scanner Reticle Overlay */}
+            <div className="absolute inset-0 pointer-events-none border-2 border-purple-500/40 m-12 rounded-2xl flex items-center justify-center">
+              <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-purple-400 to-transparent animate-pulse" />
+            </div>
+          </div>
+
+          {/* Upload QR Image Button */}
+          <div className="flex justify-center">
+            <label className="cursor-pointer px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors">
+              <FileText className="w-4 h-4 text-purple-400" />
+              <span>📁 Upload QR Image File</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+            </label>
+          </div>
+
+          {/* Quick Select for Test Ready Parcels */}
+          {readyParcels.length > 0 && (
+            <div className="bg-zinc-950 p-3.5 rounded-2xl border border-zinc-800 space-y-2">
+              <label className="text-xs font-semibold text-purple-400 uppercase tracking-wider block">Quick Test: Select Ready Parcel QR</label>
+              <select
+                className="w-full bg-zinc-900 text-white text-xs p-2.5 rounded-xl border border-zinc-800 focus:outline-none"
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const p = readyParcels.find(item => item.id === e.target.value);
+                    if (p) handleVerifyPayload(p.qrCodeData || p.pickupToken || p.id);
+                  }
+                }}
+              >
+                <option value="">-- Choose Ready Parcel to Verify --</option>
+                {readyParcels.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.trackingId} - {p.studentName} (Locker {p.lockerLabel || 'N/A'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Manual Token / Raw Payload Input */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">Manual Verification Code Input</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Paste QR payload or Verification Token..."
+                value={manualInput}
+                onChange={e => setManualInput(e.target.value)}
+                className="flex-1 bg-zinc-950 text-white text-xs px-4 py-3 rounded-xl border border-zinc-800 focus:outline-none focus:border-purple-500"
+              />
+              <button
+                onClick={() => handleVerifyPayload(manualInput)}
+                disabled={scanning || !manualInput.trim()}
+                className="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-xl disabled:opacity-50"
+              >
+                {scanning ? 'Verifying...' : 'Verify'}
+              </button>
+            </div>
+          </div>
+
+          {/* Verification Result Banner */}
+          {scanResult && (
+            <div className={`p-4 rounded-2xl border space-y-3 ${
+              scanResult.success
+                ? 'bg-emerald-500/10 border-emerald-500/30'
+                : 'bg-red-500/10 border-red-500/30'
+            }`}>
+              <div className="flex items-center gap-2">
+                {scanResult.success ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                )}
+                <p className={`font-bold text-sm ${scanResult.success ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {scanResult.success ? 'Valid Parcel Vault QR Code' : 'Verification Failed'}
+                </p>
+              </div>
+
+              {scanResult.success && scanResult.parcel && (
+                <div className="space-y-2 text-xs text-zinc-300 bg-zinc-950/60 p-3.5 rounded-xl">
+                  <p><span className="text-zinc-500">Tracking ID:</span> <strong className="text-white">{scanResult.parcel.trackingId}</strong></p>
+                  <p><span className="text-zinc-500">Student:</span> <strong className="text-white">{scanResult.parcel.studentName}</strong></p>
+                  <p><span className="text-zinc-500">Locker:</span> <strong className="text-purple-400">{scanResult.parcel.lockerLabel || 'N/A'}</strong></p>
+                  <p><span className="text-zinc-500">Status:</span> <strong className="text-emerald-400 uppercase">{scanResult.parcel.status}</strong></p>
+                  <button
+                    onClick={handleConfirmPickup}
+                    disabled={scanning}
+                    className="w-full mt-3 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all"
+                  >
+                    {scanning ? 'Processing Pickup...' : '✓ Confirm Pickup & Mark Picked Up'}
+                  </button>
+                </div>
+              )}
+
+              {!scanResult.success && (
+                <p className="text-xs text-red-300 leading-relaxed">
+                  {scanResult.error || 'The scanned QR code is invalid, expired, or tampered with.'}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Auth Screens ─────────────────────────────────────────────────────────────
 
 function SplashScreen({ onComplete }: { onComplete: () => void }) {
   useEffect(() => { const t = setTimeout(onComplete, 2200); return () => clearTimeout(t); }, [onComplete]);
   return (
-    <div className="size-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-950 via-purple-950/20 to-zinc-950">
-      <div className="w-28 h-28 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-purple-500/40 animate-pulse">
-        <Package className="w-14 h-14 text-white" />
+    <div className="size-full flex flex-col items-center justify-between bg-gradient-to-b from-[#1E1B4B] via-[#4C1D95] to-[#7C3AED] py-12 px-6">
+      <div />
+      <div className="flex flex-col items-center text-center">
+        <div className="text-8xl animate-bounce mb-4 select-none">📦</div>
+        <h1 className="text-4xl font-extrabold text-white tracking-tight">ParcelVault</h1>
+        <p className="text-white/60 text-sm mt-2 font-medium">Smart University Parcel Management</p>
       </div>
-      <h1 className="text-4xl font-bold text-white mt-8 tracking-tight">ParcelVault</h1>
-      <p className="text-zinc-400 mt-2 text-base">Smart Campus Locker System</p>
-      <div className="mt-12 flex gap-2">
-        {[0,1,2].map(i => <div key={i} className={`rounded-full bg-zinc-700 ${i === 1 ? 'w-6 h-2 bg-purple-500' : 'w-2 h-2'} transition-all`} />)}
-      </div>
+      <p className="text-white/40 text-xs font-medium">Secure · Fast · Reliable</p>
     </div>
   );
 }
@@ -320,16 +733,39 @@ function LoginScreen({ onLogin, onBack, onForgotPassword, showToast }: any) {
   const { login } = useStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'student' | 'admin'>('student');
   const [showPwd, setShowPwd] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
+  const [showSaveAccountModal, setShowSaveAccountModal] = useState(false);
+  const [pendingRole, setPendingRole] = useState<string>('student');
 
-  // Retrieve saved credentials on mount
   useEffect(() => {
-    const savedEmail = localStorage.getItem('pv_saved_email');
-    const savedPassword = localStorage.getItem('pv_saved_password');
-    if (savedEmail) setEmail(savedEmail);
-    if (savedPassword) setPassword(savedPassword);
-  }, []);
+    const list = getSavedAccountsList();
+    setSavedAccounts(list);
+    const studentAcc = list.find(a => a.role === role) || list[0];
+    if (studentAcc) {
+      setEmail(studentAcc.email);
+    }
+  }, [role]);
+
+  const handleSelectAccount = (acc: SavedAccount) => {
+    setEmail(acc.email);
+    if (acc.role) setRole(acc.role as any);
+    showToast(`Loaded saved email for ${acc.email}`, 'info');
+  };
+
+  const handleRemoveAccount = (e: React.MouseEvent, accEmail: string) => {
+    e.stopPropagation();
+    const updated = deleteSavedAccount(accEmail);
+    setSavedAccounts(updated);
+    if (email.toLowerCase() === accEmail.toLowerCase()) {
+      setEmail('');
+      setPassword('');
+    }
+    showToast('Removed saved account', 'info');
+  };
 
   const handleSubmit = async () => {
     if (!email || !password) { showToast('Please fill all fields', 'error'); return; }
@@ -338,11 +774,19 @@ function LoginScreen({ onLogin, onBack, onForgotPassword, showToast }: any) {
       const result = await login(email, password);
       setLoading(false);
       if (result.success) {
-        // Save credentials upon successful login
-        localStorage.setItem('pv_saved_email', email);
-        localStorage.setItem('pv_saved_password', password);
-        showToast('Welcome back!', 'success');
-        onLogin(result.role);
+        const userRole = result.role || role;
+        const existingList = getSavedAccountsList();
+        const alreadySaved = existingList.some(a => a.email.toLowerCase() === email.toLowerCase());
+
+        if (!alreadySaved) {
+          setPendingRole(userRole);
+          setShowSaveAccountModal(true);
+        } else {
+          // Re-update timestamp
+          storeSavedAccount({ email, role: (userRole as any) });
+          showToast('Welcome back!', 'success');
+          onLogin(userRole);
+        }
       } else {
         showToast(result.error || 'Login failed', 'error');
       }
@@ -352,37 +796,171 @@ function LoginScreen({ onLogin, onBack, onForgotPassword, showToast }: any) {
     }
   };
 
+  const handleConfirmSaveAccount = (shouldSave: boolean) => {
+    setShowSaveAccountModal(false);
+    if (shouldSave) {
+      storeSavedAccount({ email, role: (pendingRole as any) || role });
+      showToast('Account saved for fast login!', 'success');
+    } else {
+      showToast('Welcome back!', 'success');
+    }
+    onLogin(pendingRole || role);
+  };
+
   return (
-    <div className="size-full flex flex-col bg-zinc-950 overflow-y-auto">
-      <div className="px-6 pt-10 pb-4">
-        <button onClick={onBack} className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 hover:border-purple-500 transition-colors">
-          <ArrowLeft className="w-5 h-5 text-white" />
-        </button>
-      </div>
-      <div className="flex-1 px-6 pb-8">
-        <h1 className="text-3xl font-bold text-white mb-1">Welcome Back</h1>
-        <p className="text-zinc-400 mb-8">Sign in as a student</p>
-        <div className="space-y-4">
-          <InputField id="email" icon={<Mail className="w-5 h-5" />} label="Email" type="email" placeholder="your@university.edu" value={email} onChange={e => setEmail(e.target.value)} />
-          <div className="space-y-1.5">
-            <label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Password</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
-              <input id="password" type={showPwd ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-zinc-900 text-white pl-12 pr-12 py-4 rounded-2xl border border-zinc-800 focus:border-purple-500 focus:outline-none transition-colors placeholder:text-zinc-600" />
-              <button id="password-toggle" onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                {showPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+    <div className="size-full flex flex-col items-center justify-center bg-gradient-to-b from-[#3B82F6] to-[#9333EA] p-4 sm:p-6 overflow-y-auto">
+      {/* Save Account Credentials Modal */}
+      {showSaveAccountModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center space-y-4 animate-in fade-in zoom-in">
+            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto text-purple-600">
+              <ShieldCheck className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-800">Save Account Details?</h3>
+              <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">
+                Would you like to save <strong className="text-purple-600">{email}</strong> for quick one-tap login next time?
+              </p>
+            </div>
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => handleConfirmSaveAccount(true)}
+                className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-2xl shadow-lg transition-all text-sm"
+              >
+                Yes, Save Account
+              </button>
+              <button
+                onClick={() => handleConfirmSaveAccount(false)}
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-2xl transition-all text-sm"
+              >
+                Not Now
               </button>
             </div>
           </div>
-          <div className="flex justify-end">
-            <button onClick={onForgotPassword} className="text-purple-400 text-sm">Forgot password?</button>
+        </div>
+      )}
+      <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+        <div className="text-center">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">Welcome Back</h1>
+          <p className="text-slate-500 text-sm mt-1">Sign in to ParcelVault</p>
+        </div>
+
+        {/* Saved Accounts Quick Login Chips */}
+        {savedAccounts.length > 0 && (
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+            <p className="text-xs font-semibold text-purple-600 mb-2">Saved Accounts (Quick Login)</p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {savedAccounts.map((acc) => (
+                <div
+                  key={acc.email}
+                  onClick={() => handleSelectAccount(acc)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs cursor-pointer whitespace-nowrap transition-all ${
+                    email.toLowerCase() === acc.email.toLowerCase()
+                      ? 'bg-purple-100 border-purple-500 text-purple-900 font-medium'
+                      : 'bg-white border-slate-300 text-slate-700 hover:border-purple-300'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5 text-purple-600" />
+                  <span>{acc.name || acc.email}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => handleRemoveAccount(e, acc.email)}
+                    className="ml-1 text-slate-400 hover:text-red-500"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-          <PrimaryBtn id="login-button" onClick={handleSubmit} disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</PrimaryBtn>
-          <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800 mt-4">
-            <p className="text-zinc-500 text-xs font-medium mb-2 uppercase tracking-wider">Demo Credentials</p>
-            <p className="text-zinc-300 text-sm">📧 alex@university.edu</p>
-            <p className="text-zinc-300 text-sm">🔑 123456</p>
+        )}
+
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-slate-600 text-xs font-semibold">Email Address</label>
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="email"
+                placeholder="your@university.edu"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full bg-slate-50 text-slate-900 pl-11 pr-4 py-3 rounded-xl border border-slate-300 focus:border-purple-500 focus:outline-none transition-colors text-sm"
+              />
+            </div>
           </div>
+
+          <div className="space-y-1">
+            <label className="text-slate-600 text-xs font-semibold">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type={showPwd ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full bg-slate-50 text-slate-900 pl-11 pr-11 py-3 rounded-xl border border-slate-300 focus:border-purple-500 focus:outline-none transition-colors text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwd(!showPwd)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-xs pt-1">
+            <label className="flex items-center gap-2 cursor-pointer text-slate-600">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+              />
+              Save login details
+            </label>
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="text-blue-600 font-semibold hover:underline"
+            >
+              Forgot Password?
+            </button>
+          </div>
+
+          {/* Role selection radios (Student vs Admin) */}
+          <div className="flex justify-center gap-6 py-2">
+            <label className="flex items-center gap-2 cursor-pointer text-slate-700 text-sm font-medium">
+              <input
+                type="radio"
+                name="role"
+                checked={role === 'student'}
+                onChange={() => setRole('student')}
+                className="w-4 h-4 text-purple-600 accent-purple-600"
+              />
+              Student
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-slate-700 text-sm font-medium">
+              <input
+                type="radio"
+                name="role"
+                checked={role === 'admin'}
+                onChange={() => setRole('admin')}
+                className="w-4 h-4 text-purple-600 accent-purple-600"
+              />
+              Admin
+            </label>
+          </div>
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg transition-all active:scale-[0.99] disabled:opacity-50"
+          >
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
         </div>
       </div>
     </div>
@@ -393,26 +971,48 @@ function AdminLoginScreen({ onLogin, onBack, showToast }: any) {
   const { login } = useStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
 
   // Retrieve saved credentials on mount
   useEffect(() => {
-    const savedEmail = localStorage.getItem('pv_admin_saved_email');
-    const savedPassword = localStorage.getItem('pv_admin_saved_password');
-    if (savedEmail) setEmail(savedEmail);
-    if (savedPassword) setPassword(savedPassword);
+    const list = getSavedAccountsList();
+    setSavedAccounts(list);
+    const adminAcc = list.find(a => a.role === 'admin') || list[0];
+    if (adminAcc) {
+      setEmail(adminAcc.email);
+      if (adminAcc.password) setPassword(adminAcc.password);
+    }
   }, []);
+
+  const handleSelectAccount = (acc: SavedAccount) => {
+    setEmail(acc.email);
+    if (acc.password) setPassword(acc.password);
+    showToast(`Loaded details for ${acc.email}`, 'info');
+  };
+
+  const handleRemoveAccount = (e: React.MouseEvent, accEmail: string) => {
+    e.stopPropagation();
+    const updated = deleteSavedAccount(accEmail);
+    setSavedAccounts(updated);
+    if (email.toLowerCase() === accEmail.toLowerCase()) {
+      setEmail('');
+      setPassword('');
+    }
+    showToast('Removed saved account', 'info');
+  };
 
   const handleSubmit = async () => {
     if (!email || !password) { showToast('Please fill all fields', 'error'); return; }
     setLoading(true);
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, 'admin');
       setLoading(false);
       if (result.success && result.role === 'admin') {
-        // Save credentials upon successful login
-        localStorage.setItem('pv_admin_saved_email', email);
-        localStorage.setItem('pv_admin_saved_password', password);
+        if (rememberMe) {
+          storeSavedAccount({ email, password, role: 'admin' });
+        }
         showToast('Admin logged in!', 'success');
         onLogin('admin');
       } else {
@@ -428,14 +1028,85 @@ function AdminLoginScreen({ onLogin, onBack, showToast }: any) {
     <div className="size-full flex flex-col bg-zinc-950 overflow-y-auto">
       <ScreenHeader title="Admin Login" subtitle="Administrator access" onBack={onBack} />
       <div className="flex-1 px-6 py-6 space-y-4">
-        <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-pink-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+        <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-pink-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
           <ShieldCheck className="w-10 h-10 text-white" />
         </div>
+
+        {/* Saved Accounts section */}
+        {savedAccounts.length > 0 && (
+          <div className="bg-zinc-900/80 border border-orange-500/30 rounded-2xl p-4 mb-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4" /> Saved Accounts (Quick Login)
+              </span>
+              <span className="text-[10px] text-zinc-500">Tap to auto-fill</span>
+            </div>
+            <div className="space-y-2 max-h-36 overflow-y-auto">
+              {savedAccounts.map((acc) => (
+                <div
+                  key={acc.email}
+                  onClick={() => handleSelectAccount(acc)}
+                  className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    email.toLowerCase() === acc.email.toLowerCase()
+                      ? 'bg-orange-950/40 border-orange-500/60 text-white'
+                      : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-300 font-bold shrink-0">
+                      {acc.email.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="truncate">
+                      <p className="text-xs font-semibold text-white truncate">{acc.email}</p>
+                      <p className="text-[11px] text-zinc-400 capitalize">{acc.role}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => handleRemoveAccount(e, acc.email)}
+                    className="p-1 hover:text-red-400 text-zinc-500 transition-colors"
+                    title="Remove saved account"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <InputField id="admin-email" icon={<Mail className="w-5 h-5" />} label="Admin Email" type="email" placeholder="admin@university.edu" value={email} onChange={e => setEmail(e.target.value)} />
         <InputField id="admin-password" icon={<Lock className="w-5 h-5" />} label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+
+        <div className="flex items-center justify-between pt-1">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={e => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded bg-zinc-900 border-zinc-800 text-orange-500 focus:ring-orange-500/20"
+            />
+            <span className="text-zinc-400 text-xs font-medium">Save login details</span>
+          </label>
+        </div>
+
         <PrimaryBtn id="admin-login-button" onClick={handleSubmit} disabled={loading}>{loading ? 'Signing in…' : 'Admin Sign In'}</PrimaryBtn>
+
         <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
-          <p className="text-zinc-500 text-xs font-medium mb-2 uppercase tracking-wider">Demo Admin Credentials</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Demo Admin Credentials</p>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('admin@university.edu');
+                setPassword('admin123');
+                showToast('Filled Demo Admin Credentials', 'info');
+              }}
+              className="text-xs text-orange-400 hover:underline font-medium"
+            >
+              Auto-fill
+            </button>
+          </div>
           <p className="text-zinc-300 text-sm">📧 admin@university.edu</p>
           <p className="text-zinc-300 text-sm">🔑 admin123</p>
         </div>
@@ -799,6 +1470,18 @@ function ParcelDetailsScreen({ navigate, showToast }: any) {
           </div>
         ))}
 
+        {/* Display QR Code for History & Ready status */}
+        {(parcel.status === 'ready' || parcel.status === 'collected') && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex flex-col items-center gap-3 mt-4">
+            <div className="flex items-center gap-2 mb-1">
+              <QrCode className="w-4 h-4 text-purple-400" />
+              <p className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Booking Verification QR Code</p>
+            </div>
+            <QRCodeVisual parcel={parcel} size={160} />
+            <p className="text-zinc-500 text-xs text-center">Unique Booking Token: {parcel.pickupToken || `PV-${parcel.trackingId}`}</p>
+          </div>
+        )}
+
         {/* Action */}
         {parcel.status === 'ready' && (
           <div className="pt-2">
@@ -950,20 +1633,14 @@ function OTPVerificationScreen({ navigate, showToast }: any) {
           </div>
         </div>
 
-        {/* Mock QR Code */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex flex-col items-center gap-4">
+        {/* Real Dynamic QR Code */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex flex-col items-center gap-3">
           <div className="flex items-center gap-2 mb-1">
             <QrCode className="w-4 h-4 text-purple-400" />
-            <p className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Verification QR Code</p>
+            <p className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Pickup Verification QR Code</p>
           </div>
-          <div className="bg-white p-3 rounded-2xl shadow-lg">
-            <div className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${qrSize}, 1fr)` }}>
-              {qrPattern.flat().map((filled, idx) => (
-                <div key={idx} className={`w-5 h-5 rounded-sm ${filled ? 'bg-zinc-950' : 'bg-white'}`} />
-              ))}
-            </div>
-          </div>
-          <p className="text-zinc-500 text-xs text-center">Admin scans to verify your identity</p>
+          <QRCodeVisual parcel={parcel} size={180} />
+          <p className="text-zinc-500 text-xs text-center">Admin scans this QR code at the desk to issue your parcel</p>
         </div>
 
         {/* Instructions */}
@@ -1181,10 +1858,40 @@ function UserProfileScreen({ navigate }: any) {
 }
 
 function EditProfileScreen({ navigate, showToast }: any) {
-  const { currentUser } = useStore();
+  const { currentUser, setCurrentUser } = useStore();
   const student = currentUser as any;
   const [name, setName] = useState(student?.name || '');
   const [phone, setPhone] = useState(student?.phone || '');
+  const [studentId, setStudentId] = useState(student?.studentId || '');
+  const [loading, setLoading] = useState(false);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const token = getToken();
+      const res = await fetch('/api/auth/update-profile', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ name, phone, studentId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (setCurrentUser) setCurrentUser({ ...student, name, phone, studentId });
+        showToast('Profile updated!', 'success');
+        navigate('user-profile');
+      } else {
+        showToast(data.error || 'Update failed', 'error');
+      }
+    } catch (err) {
+      showToast('Could not save. Is the server running?', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="size-full flex flex-col bg-zinc-950 pb-10">
       <ScreenHeader title="Edit Profile" subtitle="Update your information" onBack={() => navigate('user-profile')} />
@@ -1192,8 +1899,8 @@ function EditProfileScreen({ navigate, showToast }: any) {
         <InputField icon={<User className="w-5 h-5" />} label="Full Name" value={name} onChange={e => setName(e.target.value)} />
         <InputField icon={<Mail className="w-5 h-5" />} label="Email" type="email" value={student?.email || ''} disabled className="opacity-50 cursor-not-allowed" />
         <InputField icon={<Phone className="w-5 h-5" />} label="Phone" value={phone} onChange={e => setPhone(e.target.value)} />
-        <InputField icon={<Building className="w-5 h-5" />} label="Student ID" value={student?.studentId || ''} disabled className="opacity-50 cursor-not-allowed" />
-        <PrimaryBtn onClick={() => { showToast('Profile updated!', 'success'); navigate('user-profile'); }}>Save Changes</PrimaryBtn>
+        <InputField icon={<Building className="w-5 h-5" />} label="Student ID" value={studentId} onChange={e => setStudentId(e.target.value)} />
+        <PrimaryBtn onClick={handleSave} disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</PrimaryBtn>
       </div>
     </div>
   );
@@ -1203,6 +1910,37 @@ function ChangePasswordScreen({ navigate, showToast }: any) {
   const [cur, setCur] = useState('');
   const [next, setNext] = useState('');
   const [conf, setConf] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleUpdate = async () => {
+    if (!cur || !next || !conf) { showToast('Fill all fields', 'error'); return; }
+    if (next !== conf) { showToast('Passwords do not match', 'error'); return; }
+    
+    setLoading(true);
+    try {
+      const token = getToken();
+      const res = await fetch('/api/auth/change-password', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ currentPassword: cur, newPassword: next })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Password updated!', 'success');
+        navigate('user-profile');
+      } else {
+        showToast(data.error || 'Update failed', 'error');
+      }
+    } catch (err) {
+      showToast('Could not save. Is the server running?', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="size-full flex flex-col bg-zinc-950 pb-10">
       <ScreenHeader title="Change Password" subtitle="Update your password" onBack={() => navigate('user-profile')} />
@@ -1210,11 +1948,7 @@ function ChangePasswordScreen({ navigate, showToast }: any) {
         <InputField icon={<Lock className="w-5 h-5" />} label="Current Password" type="password" placeholder="••••••" value={cur} onChange={e => setCur(e.target.value)} />
         <InputField icon={<Lock className="w-5 h-5" />} label="New Password" type="password" placeholder="Min. 6 chars" value={next} onChange={e => setNext(e.target.value)} />
         <InputField icon={<Lock className="w-5 h-5" />} label="Confirm Password" type="password" placeholder="Repeat" value={conf} onChange={e => setConf(e.target.value)} />
-        <PrimaryBtn onClick={() => {
-          if (!cur || !next || !conf) { showToast('Fill all fields', 'error'); return; }
-          if (next !== conf) { showToast('Passwords do not match', 'error'); return; }
-          showToast('Password updated!', 'success'); navigate('user-profile');
-        }}>Update Password</PrimaryBtn>
+        <PrimaryBtn onClick={handleUpdate} disabled={loading}>{loading ? 'Updating...' : 'Update Password'}</PrimaryBtn>
       </div>
     </div>
   );
@@ -1443,7 +2177,8 @@ function AdminDashboard({ navigate }: any) {
               { label: 'User Management', sub: `${students.length} students`, icon: <Users className="w-5 h-5 text-blue-400" />, route: 'user-management' },
               { label: 'Completed Pickups', sub: `${collected} completed`, icon: <CheckCircle2 className="w-5 h-5 text-emerald-400" />, route: 'completed-pickup' },
               { label: 'Reports & Analytics', sub: 'View insights', icon: <BarChart3 className="w-5 h-5 text-orange-400" />, route: 'reports-analytics' },
-              { label: 'Admin Notifications', sub: 'System alerts', icon: <Bell className="w-5 h-5 text-pink-400" />, route: 'admin-notifications' },
+              { label: 'Student Feedback', sub: 'View submitted feedback', icon: <MessageSquare className="w-5 h-5 text-pink-400" />, route: 'admin-feedback' },
+              { label: 'Admin Notifications', sub: 'System alerts', icon: <Bell className="w-5 h-5 text-yellow-400" />, route: 'admin-notifications' },
             ].map(item => (
               <button key={item.label} onClick={() => navigate(item.route as Screen)} className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-4 flex items-center justify-between hover:border-purple-500/50 transition-colors">
                 <div className="flex items-center gap-3">
@@ -1661,13 +2396,14 @@ function AssignLockerScreen({ navigate, showToast }: any) {
 }
 
 function GenerateOTPScreen({ navigate, showToast }: any) {
-  const { parcels, students, collectParcel } = useStore();
+  const { parcels, students, collectParcel, fetchParcels } = useStore();
   const [enteredOtp, setEnteredOtp] = useState(['', '', '', '', '', '']);
   const [verifiedParcel, setVerifiedParcel] = useState<typeof parcels[0] | null>(null);
   const [verifiedStudent, setVerifiedStudent] = useState<typeof students[0] | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [issuing, setIssuing] = useState(false);
   const [issued, setIssued] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const readyParcels = parcels.filter(p => p.status === 'ready');
@@ -1751,8 +2487,41 @@ function GenerateOTPScreen({ navigate, showToast }: any) {
 
   return (
     <div className="size-full flex flex-col bg-zinc-950 overflow-y-auto">
-      <ScreenHeader title="Verify & Issue" subtitle="Enter student's OTP to verify" onBack={() => navigate('admin-dashboard')} />
+      <ScreenHeader title="Verify & Issue" subtitle="Scan QR Code or enter student OTP" onBack={() => navigate('admin-dashboard')} />
       <div className="flex-1 px-6 py-6 space-y-5 pb-10">
+
+        {/* QR Scanner Trigger Card */}
+        <div className="bg-gradient-to-br from-purple-900/40 via-indigo-900/30 to-zinc-900 border border-purple-500/40 rounded-3xl p-5 text-center space-y-3 shadow-lg">
+          <div className="w-12 h-12 bg-purple-500/20 border border-purple-500/40 rounded-2xl flex items-center justify-center mx-auto">
+            <Camera className="w-6 h-6 text-purple-400" />
+          </div>
+          <div>
+            <h3 className="text-white font-bold text-base">Scan Student QR Pass</h3>
+            <p className="text-zinc-400 text-xs mt-1">Use camera to scan ParcelVault QR code for instant verification</p>
+          </div>
+          <button
+            onClick={() => setShowScanner(true)}
+            className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2"
+          >
+            <Camera className="w-4 h-4" />
+            <span>📷 Scan QR Code with Camera</span>
+          </button>
+        </div>
+
+        {/* QR Scanner Modal */}
+        <QRScannerModal
+          isOpen={showScanner}
+          onClose={() => setShowScanner(false)}
+          readyParcels={readyParcels}
+          showToast={showToast}
+          onVerified={(p) => {
+            fetchParcels();
+            setVerifiedParcel(p);
+            const stu = students.find(s => s.id === p.studentId);
+            setVerifiedStudent(stu || null);
+            setIssued(true);
+          }}
+        />
 
         {/* Info Banner */}
         <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex gap-3">
@@ -2076,28 +2845,233 @@ function ReportsAnalyticsScreen({ navigate }: any) {
   );
 }
 
-function AdminNotificationsScreen({ navigate }: any) {
-  const { parcels } = useStore();
+function AdminNotificationsScreen({ navigate, showToast }: any) {
+  const { students, parcels } = useStore();
+  const [targetStudentId, setTargetStudentId] = useState('all');
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
+  const [sending, setSending] = useState(false);
   const pending = parcels.filter(p => p.status === 'pending');
+
+  const handleSendNotif = async () => {
+    if (!notifTitle.trim() || !notifMessage.trim()) {
+      showToast('Title and message are required', 'error');
+      return;
+    }
+    setSending(true);
+    try {
+      const token = getToken();
+      const res = await fetch('/api/notifications/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          studentId: targetStudentId,
+          title: notifTitle.trim(),
+          message: notifMessage.trim(),
+          type: 'alert'
+        })
+      });
+      const data = await res.json();
+      setSending(false);
+      if (data.success) {
+        showToast(data.message || 'Notification sent successfully! ✅', 'success');
+        setNotifTitle('');
+        setNotifMessage('');
+      } else {
+        showToast(data.error || 'Failed to send notification', 'error');
+      }
+    } catch (err: any) {
+      setSending(false);
+      showToast(err.message || 'Failed to send notification', 'error');
+    }
+  };
+
   return (
     <div className="size-full flex flex-col bg-zinc-950 pb-10">
-      <ScreenHeader title="Admin Alerts" subtitle="System notifications" onBack={() => navigate('admin-dashboard')} />
+      <ScreenHeader title="Admin Notifications & Alerts" subtitle="Send alerts & view system status" onBack={() => navigate('admin-dashboard')} />
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        
+        {/* Send Notification Card */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-4 shadow-xl">
+          <div className="flex items-center gap-3 border-b border-zinc-800 pb-3">
+            <Bell className="w-5 h-5 text-amber-400" />
+            <h3 className="text-white font-bold text-base">Send Custom Student Notification</h3>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block mb-1">Target Student</label>
+              <select
+                value={targetStudentId}
+                onChange={e => setTargetStudentId(e.target.value)}
+                className="w-full bg-zinc-950 text-white text-sm px-4 py-3 rounded-xl border border-zinc-800 focus:outline-none focus:border-amber-500"
+              >
+                <option value="all">📢 All Students (Broadcast)</option>
+                {students.map(s => (
+                  <option key={s.id} value={s.id}>
+                    🎓 {s.name} ({s.studentId || s.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block mb-1">Notification Title *</label>
+              <input
+                type="text"
+                placeholder="e.g. Parcel Ready for Pickup in Locker A-1"
+                value={notifTitle}
+                onChange={e => setNotifTitle(e.target.value)}
+                className="w-full bg-zinc-950 text-white text-sm px-4 py-3 rounded-xl border border-zinc-800 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block mb-1">Message Content *</label>
+              <textarea
+                placeholder="Type your notification message to the student..."
+                value={notifMessage}
+                onChange={e => setNotifMessage(e.target.value)}
+                rows={3}
+                className="w-full bg-zinc-950 text-white text-sm px-4 py-3 rounded-xl border border-zinc-800 focus:outline-none focus:border-amber-500 resize-none"
+              />
+            </div>
+
+            <button
+              onClick={handleSendNotif}
+              disabled={sending || !notifTitle.trim() || !notifMessage.trim()}
+              className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold text-sm rounded-xl shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {sending ? 'Sending Notification…' : '📢 Send Notification to Student'}
+            </button>
+          </div>
+        </div>
+
+        {/* Pending Alerts */}
+        <div>
+          <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-3">Parcels Awaiting Locker Assignment ({pending.length})</h3>
+          <div className="space-y-3">
+            {pending.map(p => (
+              <div key={p.id} className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4">
+                <div className="flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-white font-semibold text-sm">Parcel Awaiting Assignment</p>
+                    <p className="text-zinc-400 text-sm">{p.trackingId} · {p.studentName}</p>
+                    <p className="text-zinc-500 text-xs mt-1">Arrived: {new Date(p.arrivedAt).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {pending.length === 0 && (
+              <div className="text-center py-10 bg-zinc-900 border border-zinc-800 rounded-2xl">
+                <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
+                <p className="text-zinc-400 font-medium">All parcels are assigned!</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function AdminFeedbackScreen({ navigate }: any) {
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
+
+  useEffect(() => {
+    const fetchFeedback = async () => {
+      try {
+        const token = getToken();
+        const res = await fetch('/api/feedback', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        const data = await res.json();
+        if (data.success) setFeedbacks(data.data || []);
+      } catch (e) {
+        console.error('Failed to load feedback', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFeedback();
+  }, []);
+
+  const filtered = feedbacks.filter(f => filter === 'all' ? true : f.status === filter);
+  const unreadCount = feedbacks.filter(f => f.status === 'unread').length;
+
+  const stars = (rating: number) => rating > 0 ? '⭐'.repeat(Math.min(rating, 5)) : '—';
+
+  return (
+    <div className="size-full flex flex-col bg-zinc-950 pb-10">
+      <ScreenHeader title="Student Feedback" subtitle={`${unreadCount} unread`} onBack={() => navigate('admin-dashboard')} />
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 px-6 py-3 border-b border-zinc-800/50">
+        {(['all', 'unread', 'read'] as const).map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
+              filter === f
+                ? 'bg-pink-500/20 text-pink-400 border border-pink-500/40'
+                : 'bg-zinc-900 text-zinc-500 border border-zinc-800'
+            }`}
+          >
+            {f} {f === 'unread' && unreadCount > 0 ? `(${unreadCount})` : ''}
+          </button>
+        ))}
+      </div>
+
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-        {pending.map(p => (
-          <div key={p.id} className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4">
-            <div className="flex gap-3">
-              <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-white font-semibold text-sm">Parcel Awaiting Assignment</p>
-                <p className="text-zinc-400 text-sm">{p.trackingId} · {p.studentName}</p>
-                <p className="text-zinc-500 text-xs mt-1">Arrived: {new Date(p.arrivedAt).toLocaleString()}</p>
+        {loading && (
+          <div className="text-center py-20">
+            <RefreshCw className="w-8 h-8 text-zinc-600 mx-auto animate-spin mb-3" />
+            <p className="text-zinc-500">Loading feedback…</p>
+          </div>
+        )}
+
+        {!loading && filtered.length === 0 && (
+          <div className="text-center py-20">
+            <MessageSquare className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
+            <p className="text-zinc-400">No {filter === 'all' ? '' : filter} feedback yet</p>
+            <p className="text-zinc-600 text-sm mt-1">Students can submit feedback from Help &amp; Support</p>
+          </div>
+        )}
+
+        {!loading && filtered.map(fb => (
+          <div
+            key={fb.id}
+            className={`rounded-2xl border p-4 space-y-2 ${
+              fb.status === 'unread'
+                ? 'bg-pink-500/5 border-pink-500/30'
+                : 'bg-zinc-900 border-zinc-800'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  {fb.status === 'unread' && (
+                    <span className="w-2 h-2 rounded-full bg-pink-400 shrink-0" />
+                  )}
+                  <p className="text-white font-semibold text-sm truncate">{fb.subject || 'General Feedback'}</p>
+                </div>
+                <p className="text-zinc-500 text-xs mt-0.5">{fb.student_name} · {fb.email}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-zinc-400 text-xs">{fb.rating > 0 ? stars(fb.rating) : ''}</p>
+                <p className="text-zinc-600 text-[10px] mt-0.5">{new Date(fb.created_at).toLocaleDateString()}</p>
               </div>
             </div>
+            <p className="text-zinc-300 text-sm leading-relaxed bg-zinc-800/50 rounded-xl px-3 py-2">{fb.message}</p>
           </div>
         ))}
-        {pending.length === 0 && (
-          <div className="text-center py-20"><CheckCircle2 className="w-16 h-16 text-zinc-700 mx-auto mb-4" /><p className="text-zinc-400">No pending alerts</p></div>
-        )}
       </div>
     </div>
   );
@@ -2205,25 +3179,61 @@ function ContactSupportScreen({ navigate, showToast }: any) {
 
 function FeedbackScreen({ navigate, showToast }: any) {
   const [rating, setRating] = useState(0);
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!message.trim()) {
+      showToast('Please enter your feedback message', 'error');
+      return;
+    }
+    setLoading(true);
+    try {
+      const token = getToken();
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ subject: subject.trim() || message.trim().slice(0, 60), message, rating })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Thank you for your feedback!', 'success');
+        navigate('help-support');
+      } else {
+        showToast(data.error || 'Failed to submit feedback', 'error');
+      }
+    } catch (err) {
+      showToast('Could not submit. Is the server running?', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="size-full flex flex-col bg-zinc-950 pb-10">
       <ScreenHeader title="Feedback" subtitle="Share your thoughts" onBack={() => navigate('help-support')} />
-      <div className="flex-1 px-6 py-6 space-y-4">
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
         <div className="bg-zinc-900 rounded-2xl p-6 border border-zinc-800 text-center">
           <p className="text-white font-semibold mb-4">How was your experience?</p>
           <div className="flex justify-center gap-3">
             {[1,2,3,4,5].map(s => (
-              <button key={s} onClick={() => setRating(s)} className={`text-4xl transition-transform ${s <= rating ? 'scale-110' : 'scale-100'}`}>
+              <button key={s} onClick={() => setRating(s)} className={`text-4xl transition-transform hover:scale-110 ${s <= rating ? 'scale-110' : 'scale-100'}`}>
                 {s <= rating ? '⭐' : '☆'}
               </button>
             ))}
           </div>
+          {rating > 0 && <p className="text-zinc-400 text-sm mt-2">{['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent!'][rating]}</p>}
         </div>
+        <InputField icon={<MessageSquare className="w-5 h-5" />} label="Subject (optional)" placeholder="e.g. Locker issue, App suggestion…" value={subject} onChange={e => setSubject(e.target.value)} />
         <div className="space-y-1.5">
-          <label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Your Feedback</label>
-          <textarea placeholder="Tell us what you think…" rows={6} className="w-full bg-zinc-900 text-white px-4 py-4 rounded-2xl border border-zinc-800 focus:border-purple-500 focus:outline-none resize-none placeholder:text-zinc-600" />
+          <label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Your Feedback *</label>
+          <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Tell us what you think, what went wrong, or how we can improve…" rows={6} className="w-full bg-zinc-900 text-white px-4 py-4 rounded-2xl border border-zinc-800 focus:border-purple-500 focus:outline-none resize-none placeholder:text-zinc-600" />
         </div>
-        <PrimaryBtn onClick={() => { showToast('Thank you for your feedback!', 'success'); navigate('help-support'); }}>Submit Feedback</PrimaryBtn>
+        <PrimaryBtn onClick={handleSubmit} disabled={loading}>{loading ? 'Submitting...' : 'Submit Feedback'}</PrimaryBtn>
       </div>
     </div>
   );

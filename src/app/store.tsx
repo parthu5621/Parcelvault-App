@@ -40,6 +40,8 @@ export interface Parcel {
   lockerId: string | null;
   lockerLabel: string | null;
   otp: string | null;
+  qrCodeData?: string | null;
+  pickupToken?: string | null;
   status: ParcelStatus;
   arrivedAt: string;
   assignedAt: string | null;
@@ -66,11 +68,96 @@ export interface Notification {
   createdAt: string;
 }
 
+// ─── Initial Default / Demo Mock Data ─────────────────────────────────────────
+
+const DEFAULT_STUDENTS: Student[] = [
+  { id: 's1', name: 'Alex Johnson', email: 'alex@university.edu', phone: '+91 98765 43210', studentId: 'STU001' },
+  { id: 's2', name: 'Priya Sharma', email: 'priya@university.edu', phone: '+91 87654 32109', studentId: 'STU002' },
+  { id: 's3', name: 'Ravi Kumar', email: 'ravi@university.edu', phone: '+91 76543 21098', studentId: 'STU003' },
+];
+
+const DEFAULT_ADMINS: Admin[] = [
+  { id: 'a1', name: 'Admin Kumar', email: 'admin@university.edu' },
+];
+
+const DEFAULT_LOCKERS: Locker[] = [
+  { id: 'LA1', label: 'A-01', section: 'A', size: 'small', isOccupied: true, currentParcelId: 'p1' },
+  { id: 'LA2', label: 'A-02', section: 'A', size: 'medium', isOccupied: true, currentParcelId: 'p2' },
+  { id: 'LA3', label: 'A-03', section: 'A', size: 'large', isOccupied: false, currentParcelId: null },
+  { id: 'LB1', label: 'B-01', section: 'B', size: 'medium', isOccupied: false, currentParcelId: null },
+  { id: 'LB2', label: 'B-02', section: 'B', size: 'small', isOccupied: false, currentParcelId: null },
+  { id: 'LC1', label: 'C-01', section: 'C', size: 'large', isOccupied: false, currentParcelId: null },
+];
+
+const DEFAULT_PARCELS: Parcel[] = [
+  {
+    id: 'p1',
+    trackingId: 'PKG-2026-00001',
+    studentId: 's1',
+    studentName: 'Alex Johnson',
+    description: 'Amazon - Books & Stationery',
+    deliveryService: 'Amazon Delivery',
+    lockerId: 'LA1',
+    lockerLabel: 'A-01',
+    otp: '482931',
+    status: 'ready',
+    arrivedAt: new Date(Date.now() - 7200000).toISOString(),
+    assignedAt: new Date(Date.now() - 5400000).toISOString(),
+    collectedAt: null,
+    expiresAt: new Date(Date.now() + 345600000).toISOString(),
+  },
+  {
+    id: 'p2',
+    trackingId: 'PKG-2026-00002',
+    studentId: 's2',
+    studentName: 'Priya Sharma',
+    description: 'Flipkart - Electronics',
+    deliveryService: 'Flipkart Quick',
+    lockerId: 'LA2',
+    lockerLabel: 'A-02',
+    otp: '719284',
+    status: 'ready',
+    arrivedAt: new Date(Date.now() - 18000000).toISOString(),
+    assignedAt: new Date(Date.now() - 14400000).toISOString(),
+    collectedAt: null,
+    expiresAt: new Date(Date.now() + 259200000).toISOString(),
+  },
+  {
+    id: 'p3',
+    trackingId: 'PKG-2026-00003',
+    studentId: 's1',
+    studentName: 'Alex Johnson',
+    description: 'Meesho - Clothing',
+    deliveryService: 'Meesho Express',
+    lockerId: null,
+    lockerLabel: null,
+    otp: null,
+    status: 'pending',
+    arrivedAt: new Date(Date.now() - 1800000).toISOString(),
+    assignedAt: null,
+    collectedAt: null,
+    expiresAt: null,
+  },
+];
+
+const DEFAULT_NOTIFICATIONS: Notification[] = [
+  {
+    id: 'n1',
+    studentId: 's1',
+    title: 'Parcel Ready for Pickup',
+    message: 'Your parcel PKG-2026-00001 has been assigned to Locker A-01. Use OTP 482931 to collect.',
+    type: 'alert',
+    isRead: false,
+    createdAt: new Date(Date.now() - 5400000).toISOString(),
+  },
+];
+
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 interface StoreContextType {
   // Auth
   currentUser: Student | Admin | null;
+  setCurrentUser: React.Dispatch<React.SetStateAction<Student | Admin | null>>;
   currentRole: 'student' | 'admin' | null;
   login: (email: string, password: string) => Promise<{ success: boolean; role?: 'student' | 'admin'; error?: string }>;
   register: (data: any, role?: 'student' | 'admin') => Promise<{ success: boolean; error?: string }>;
@@ -109,11 +196,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<Student | Admin | null>(null);
   const [currentRole, setCurrentRole] = useState<'student' | 'admin' | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [admins, setAdmins] = useState<Admin[]>([]);
-  const [lockers, setLockers] = useState<Locker[]>([]);
-  const [parcels, setParcels] = useState<Parcel[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [students, setStudents] = useState<Student[]>(DEFAULT_STUDENTS);
+  const [admins, setAdmins] = useState<Admin[]>(DEFAULT_ADMINS);
+  const [lockers, setLockers] = useState<Locker[]>(DEFAULT_LOCKERS);
+  const [parcels, setParcels] = useState<Parcel[]>(DEFAULT_PARCELS);
+  const [notifications, setNotifications] = useState<Notification[]>(DEFAULT_NOTIFICATIONS);
   const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
   const [selectedLockerId, setSelectedLockerId] = useState<string | null>(null);
 
@@ -129,13 +216,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         notificationsApi.list().catch(() => ({ success: false, data: [] })),
       ]);
 
-      if (pRes.success) setParcels(pRes.data);
-      if (lRes.success) setLockers(lRes.data);
-      if (nRes.success) setNotifications(nRes.data);
+      if (pRes.success && pRes.data && pRes.data.length > 0) setParcels(pRes.data);
+      if (lRes.success && lRes.data && lRes.data.length > 0) setLockers(lRes.data);
+      if (nRes.success && nRes.data && nRes.data.length > 0) setNotifications(nRes.data);
 
       if (currentRole === 'admin') {
         const sRes = await studentsApi.list().catch(() => ({ success: false, data: [] }));
-        if (sRes.success) setStudents(sRes.data);
+        if (sRes.success && sRes.data && sRes.data.length > 0) setStudents(sRes.data);
       }
     } catch (err) {
       console.error('Failed to sync backend data:', err);
@@ -150,14 +237,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         try {
           const res = await authApi.me();
           if (res.success && res.user) {
+            console.log('[WEB STORE] Session restored for user:', res.user.email);
             setCurrentUser(res.user);
             setCurrentRole(res.user.role || 'student');
           } else {
+            console.warn('[WEB STORE] Session restoration returned invalid user. Clearing token.');
             clearToken();
+            setCurrentUser(null);
+            setCurrentRole(null);
           }
         } catch (e) {
-          console.error('Session restoration failed:', e);
+          console.error('[WEB STORE] Session restoration failed:', e);
           clearToken();
+          setCurrentUser(null);
+          setCurrentRole(null);
         }
       }
       setLoading(false);
@@ -169,40 +262,58 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (currentUser) {
       refreshData();
-    } else {
-      setParcels([]);
-      setLockers([]);
-      setNotifications([]);
-      setStudents([]);
     }
   }, [currentUser, currentRole]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, role?: 'student' | 'admin') => {
     try {
-      const res = await authApi.login(email, password);
-      if (res.success && res.token) {
+      const res = await authApi.login(email, password, role);
+      if (res.success && res.token && res.user) {
         setToken(res.token);
         setCurrentUser(res.user);
-        setCurrentRole(res.role as 'student' | 'admin');
-        return { success: true, role: res.role as 'student' | 'admin' };
+        const finalRole = (res.role || res.user.role || role || 'student') as 'student' | 'admin';
+        setCurrentRole(finalRole);
+
+        // Save account locally for one-tap web login
+        import('./api').then(({ saveWebAccount }) => {
+          saveWebAccount({
+            email: res.user.email || email,
+            name: res.user.name || email.split('@')[0],
+            role: finalRole
+          });
+        });
+
+        return { success: true, role: finalRole };
       }
-      return { success: false, error: 'Login failed' };
+      return { success: false, error: 'Invalid email or password' };
     } catch (err: any) {
-      return { success: false, error: err.message || 'Invalid email or password' };
+      console.error('[WEB STORE] Login error:', err);
+      return { success: false, error: err.message || 'Login failed. Please try again.' };
     }
   };
 
   const register = async (data: any, role: 'student' | 'admin' = 'student') => {
     try {
       const res = await authApi.register({ ...data, role });
-      if (res.success && res.token) {
+      if (res.success && res.token && res.user) {
         setToken(res.token);
         setCurrentUser(res.user);
-        setCurrentRole(res.role as 'student' | 'admin');
+        const finalRole = (res.role || res.user.role || role) as 'student' | 'admin';
+        setCurrentRole(finalRole);
+
+        import('./api').then(({ saveWebAccount }) => {
+          saveWebAccount({
+            email: res.user.email || data.email,
+            name: res.user.name || data.name,
+            role: finalRole
+          });
+        });
+
         return { success: true };
       }
       return { success: false, error: 'Registration failed' };
     } catch (err: any) {
+      console.error('[WEB STORE] Registration error:', err);
       return { success: false, error: err.message || 'Registration failed' };
     }
   };
@@ -286,7 +397,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   return (
     <StoreContext.Provider value={{
-      currentUser, currentRole, login, register, logout, loading,
+      currentUser, setCurrentUser, currentRole, login, register, logout, loading,
       students, admins, lockers, parcels, notifications, refreshData,
       addParcel, assignLocker, collectParcel, getStudentParcels, releaseLocker,
       getStudentNotifications, markNotificationRead,

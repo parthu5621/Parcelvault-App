@@ -7,11 +7,12 @@ const cors = require('cors');
 
 // ─── Routes ────────────────────────────────────────────────────────────────────
 const authRoutes         = require('./routes/auth');
-const parcelRoutes       = require('./routes/parcels');
+const parcelRoutesModule = require('./routes/parcels');
 const lockerRoutes       = require('./routes/lockers');
 const studentRoutes      = require('./routes/students');
 const notifRoutes        = require('./routes/notifications');
 const dashboardRoutes    = require('./routes/dashboard');
+const feedbackRoutes     = require('./routes/feedback');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,27 +20,34 @@ const PORT = process.env.PORT || 3001;
 // ─── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logger (dev only)
-if (process.env.NODE_ENV !== 'production') {
-  app.use((req, _res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-    next();
+// Request logger for authentication & API activity
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (req.path.startsWith('/api/auth')) {
+      console.log(`[AUTH SERVER LOG] ${req.method} ${req.path} -> ${res.statusCode} (${duration}ms)`);
+    }
   });
-}
+  next();
+});
 
 // ─── API Routes ────────────────────────────────────────────────────────────────
 app.use('/api/auth',          authRoutes);
-app.use('/api/parcels',       parcelRoutes);
+app.use('/api/parcels',       parcelRoutesModule.router);
 app.use('/api/lockers',       lockerRoutes);
 app.use('/api/students',      studentRoutes);
 app.use('/api/notifications', notifRoutes);
 app.use('/api/dashboard',     dashboardRoutes);
+app.use('/api/feedback',      feedbackRoutes);
 
 // ─── Health Check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -63,8 +71,19 @@ app.use((err, _req, res, _next) => {
 });
 
 // ─── Start ─────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log('');
+const db = require('./db/database');
+
+async function startServer() {
+  await db.initDB();
+
+  // Run initial check and set up periodic auto-expiry engine (every 60 seconds)
+  parcelRoutesModule.checkExpiredParcels();
+  setInterval(() => {
+    parcelRoutesModule.checkExpiredParcels();
+  }, 60000);
+
+  app.listen(PORT, () => {
+    console.log('');
   console.log('  ╔══════════════════════════════════════╗');
   console.log('  ║     📦  ParcelVault API Server       ║');
   console.log('  ╠══════════════════════════════════════╣');
@@ -85,6 +104,9 @@ app.listen(PORT, () => {
   console.log('  GET    /api/notifications');
   console.log('  GET    /api/dashboard/stats');
   console.log('');
-});
+  });
+}
+
+startServer();
 
 module.exports = app;

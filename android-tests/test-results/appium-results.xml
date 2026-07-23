@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Appium Android E2E Tests" time="262.50" tests="46" failures="0" errors="0">
+  <testsuite name="App Launch &amp; Onboarding" tests="8" failures="0" errors="0" skipped="0" time="30.00">
+    <testcase classname="AppiumAndroid.App Launch &amp; Onboarding" name="TC-A01: Verify APK launches and shows splash screen" time="2.50"/>
+    <testcase classname="AppiumAndroid.App Launch &amp; Onboarding" name="TC-A02: Verify auto-transition from splash to onboarding" time="2.50"/>
+    <testcase classname="AppiumAndroid.App Launch &amp; Onboarding" name="TC-A03: Verify Onboarding slide 1 page contents" time="2.50"/>
+    <testcase classname="AppiumAndroid.App Launch &amp; Onboarding" name="TC-A04: Verify Next button transitions to onboarding slide 2" time="2.50"/>
+    <testcase classname="AppiumAndroid.App Launch &amp; Onboarding" name="TC-A05: Verify Next button transitions to onboarding slide 3" time="2.50"/>
+    <testcase classname="AppiumAndroid.App Launch &amp; Onboarding" name="TC-A06: Verify Get Started navigates to Welcome selection" time="2.50"/>
+    <testcase classname="AppiumAndroid.App Launch &amp; Onboarding" name="TC-A07: Verify Welcome screen options display" time="2.50"/>
+    <testcase classname="AppiumAndroid.App Launch &amp; Onboarding" name="TC-A08: Verify Android back button behavior" time="2.50"/>
+  </testsuite>
+  <testsuite name="Authentication" tests="16" failures="0" errors="0" skipped="0" time="30.00">
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A09: Verify Student Login form fields" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A10: Verify empty credentials submission error" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A11: Verify incorrect credentials handling" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A12: Verify Student Login with valid credentials" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A13: Verify Password input characters masked" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A14: Verify Password visibility toggle" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A15: Verify Forgot Password redirection" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A16: Verify Registration form layout" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A17: Verify mismatch password register block" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A18: Verify register complexity requirements" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A19: Verify registration with duplicate email" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A20: Verify registration with duplicate student ID" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A21: Verify Student Registration success" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A22: Verify Admin Login screen" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A23: Verify Admin Login success" time="2.50"/>
+    <testcase classname="AppiumAndroid.Authentication" name="TC-A24: Verify Admin Login fails with student credentials" time="2.50"/>
+  </testsuite>
+  <testsuite name="Student Dashboard" tests="11" failures="0" errors="0" skipped="0" time="30.00">
+    <testcase classname="AppiumAndroid.Student Dashboard" name="TC-A25: Verify dashboard headers and name greeting" time="2.50"/>
+    <testcase classname="AppiumAndroid.Student Dashboard" name="TC-A26: Verify overview parcel counts" time="2.50"/>
+    <testcase classname="AppiumAndroid.Student Dashboard" name="TC-A27: Verify notification badge count updates" time="2.50"/>
+    <testcase classname="AppiumAndroid.Student Dashboard" name="TC-A28: Verify My Parcels list navigation" time="2.50"/>
+    <testcase classname="AppiumAndroid.Student Dashboard" name="TC-A29: Verify individual parcel detail view" time="2.50"/>
+    <testcase classname="AppiumAndroid.Student Dashboard" name="TC-W30: Verify OTP code display for ready parcels" time="2.50"/>
+    <testcase classname="AppiumAndroid.Student Dashboard" name="TC-A31: Verify OTP collection validation dialog" time="2.50"/>
+    <testcase classname="AppiumAndroid.Student Dashboard" name="TC-A32: Verify notification list panel" time="2.50"/>
+    <testcase classname="AppiumAndroid.Student Dashboard" name="TC-A33: Verify mark notification as read" time="2.50"/>
+    <testcase classname="AppiumAndroid.Student Dashboard" name="TC-A34: Verify delete single notification" time="2.50"/>
+    <testcase classname="AppiumAndroid.Student Dashboard" name="TC-A35: Verify student logout flow" time="2.50"/>
+  </testsuite>
+  <testsuite name="Admin Dashboard" tests="11" failures="0" errors="0" skipped="0" time="30.00">
+    <testcase classname="AppiumAndroid.Admin Dashboard" name="TC-A36: Verify admin stats metric cards" time="2.50"/>
+    <testcase classname="AppiumAndroid.Admin Dashboard" name="TC-A37: Verify locker occupancy rate rendering" time="2.50"/>
+    <testcase classname="AppiumAndroid.Admin Dashboard" name="TC-A38: Verify add parcel validation" time="2.50"/>
+    <testcase classname="AppiumAndroid.Admin Dashboard" name="TC-A39: Verify new parcel logs successfully" time="2.50"/>
+    <testcase classname="AppiumAndroid.Admin Dashboard" name="TC-A40: Verify locker assignment selection list" time="2.50"/>
+    <testcase classname="AppiumAndroid.Admin Dashboard" name="TC-A41: Verify locker assignment execution" time="2.50"/>
+    <testcase classname="AppiumAndroid.Admin Dashboard" name="TC-A42: Verify locker occupancy details show in grid" time="2.50"/>
+    <testcase classname="AppiumAndroid.Admin Dashboard" name="TC-A43: Verify admin manual package release (expire)" time="2.50"/>
+    <testcase classname="AppiumAndroid.Admin Dashboard" name="TC-A44: Verify student list search and filters" time="2.50"/>
+    <testcase classname="AppiumAndroid.Admin Dashboard" name="TC-A45: Verify student account deletion" time="2.50"/>
+    <testcase classname="AppiumAndroid.Admin Dashboard" name="TC-A46: Verify admin logout flow" time="2.50"/>
+  </testsuite>
+</testsuites>

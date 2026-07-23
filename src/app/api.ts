@@ -3,44 +3,99 @@
 // In production APK build: change this to your actual server IP/domain
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-// ─── Token helpers ─────────────────────────────────────────────────────────────
+// ─── Token & Saved Accounts helpers ────────────────────────────────────────────
 export const getToken = () => localStorage.getItem('pv_token');
 export const setToken = (t: string) => localStorage.setItem('pv_token', t);
 export const clearToken = () => localStorage.removeItem('pv_token');
 
-// ─── Core fetch wrapper ────────────────────────────────────────────────────────
+export interface SavedWebAccount {
+  email: string;
+  name: string;
+  role: 'student' | 'admin';
+}
+
+const SAVED_ACCOUNTS_KEY = 'pv_saved_accounts';
+
+export const getSavedWebAccounts = (): SavedWebAccount[] => {
+  try {
+    const raw = localStorage.getItem(SAVED_ACCOUNTS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+};
+
+export const saveWebAccount = (acc: SavedWebAccount) => {
+  try {
+    const list = getSavedWebAccounts().filter(a => a.email.toLowerCase() !== acc.email.toLowerCase());
+    list.unshift(acc);
+    localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(list.slice(0, 5)));
+  } catch (e) {
+    console.error('Failed to save web account:', e);
+  }
+};
+
+export const removeSavedWebAccount = (email: string): SavedWebAccount[] => {
+  try {
+    const list = getSavedWebAccounts().filter(a => a.email.toLowerCase() !== email.toLowerCase());
+    localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(list));
+    return list;
+  } catch {
+    return [];
+  }
+};
+
+// ─── Core fetch wrapper with auto-retry ───────────────────────────────────────
 async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
   const token = getToken();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  let lastError: any = null;
+  const maxRetries = 3;
 
-  const text = await res.text();
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch (err) {
-    throw new Error(`Invalid response from server: ${text.slice(0, 100)}`);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(`${BASE_URL}${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...options.headers,
+        },
+      });
+
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (err) {
+        throw new Error(`Invalid response from server: ${text.slice(0, 100)}`);
+      }
+
+      if (!res.ok) throw new Error(data.error || `Request failed with status ${res.status}`);
+      return data;
+    } catch (err: any) {
+      lastError = err;
+      // Only retry network connectivity errors (like fetch failed), not 4xx/5xx responses
+      if (attempt < maxRetries && (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('NetworkError'))) {
+        await new Promise((resolve) => setTimeout(resolve, attempt * 300));
+        continue;
+      }
+      throw err;
+    }
   }
 
-  if (!res.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  throw lastError || new Error('Network error');
 }
 
 // ─── Auth API ──────────────────────────────────────────────────────────────────
 export const authApi = {
-  login: (email: string, password: string) =>
+  login: (email: string, password: string, role?: string) =>
     request<{ success: boolean; role: string; token: string; user: any }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, role }),
     }),
 
   register: (data: {
@@ -88,6 +143,18 @@ export const parcelsApi = {
 
   delete: (parcelId: string) =>
     request<{ success: boolean }>(`/parcels/${parcelId}`, { method: 'DELETE' }),
+
+  verifyQR: (data: { qrData?: string; token?: string; parcelId?: string; autoConfirm?: boolean }) =>
+    request<{ success: boolean; message?: string; data?: any; error?: string }>('/parcels/verify-qr', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  confirmQRPickup: (data: { parcelId: string; token?: string }) =>
+    request<{ success: boolean; message?: string; data?: any; error?: string }>('/parcels/confirm-qr-pickup', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // ─── Lockers API ───────────────────────────────────────────────────────────────

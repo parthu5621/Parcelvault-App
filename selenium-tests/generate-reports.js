@@ -360,386 +360,204 @@ async function run() {
 
   // Generate Beautiful HTML dashboard
   const htmlPath = path.join(rootDir, 'selenium-tests', 'test-results', 'dashboard.html');
+  
+  // Group by category only for the HTML dashboard
+  const categoryStats = {};
+  [...seleniumStats.cases, ...appiumStats.cases].forEach(tc => {
+    const key = tc.category || 'General';
+    if (!categoryStats[key]) {
+      categoryStats[key] = { name: key, total: 0, passed: 0, failed: 0 };
+    }
+    categoryStats[key].total++;
+    if (tc.status === 'Passed') categoryStats[key].passed++;
+    else categoryStats[key].failed++;
+  });
+
+  const isDeployable = passRate >= 95;
   const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ParcelVault QA Suite Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <title>ParcelVault App Test Report</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #030014;
-      --card-bg: rgba(255, 255, 255, 0.03);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --text: #f3f4f6;
-      --text-muted: #9ca3af;
-      --primary: #6366f1;
-      --primary-glow: rgba(99, 102, 241, 0.15);
-      --success: #10b981;
-      --success-glow: rgba(16, 185, 129, 0.15);
-      --error: #ef4444;
-      --error-glow: rgba(239, 68, 68, 0.15);
-      --accent: #a855f7;
+      --bg: #1c1e26;
+      --card-bg: #222632;
+      --card-border: rgba(255, 255, 255, 0.05);
+      --text: #ffffff;
+      --text-muted: #8b92a5;
+      --primary: #2dce89;
+      --green: #23c55e;
+      --green-bg: rgba(35, 197, 94, 0.15);
+      --red: #ef4444;
+      --red-bg: rgba(239, 68, 68, 0.15);
+      --blue: #3b82f6;
+      --blue-bg: rgba(59, 130, 246, 0.15);
+      --orange: #f59e0b;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; margin: 0; padding: 2rem; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
+    .header h1 { font-size: 2.2rem; font-weight: 800; margin: 0 0 0.5rem 0; letter-spacing: -0.5px; }
+    .subtitle { display: flex; align-items: center; color: var(--text-muted); font-size: 1rem; font-weight: 600; }
+    .subtitle .dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; margin-right: 8px; box-shadow: 0 0 8px var(--green); }
+    .deploy-badge { 
+      background: rgba(35, 197, 94, 0.1); border: 1px solid var(--green); color: var(--green); 
+      padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 700; display: flex; align-items: center; gap: 8px; font-size: 0.95rem; letter-spacing: 0.5px;
+    }
+    .deploy-badge.not-deployable {
+      background: rgba(239, 68, 68, 0.1); border-color: var(--red); color: var(--red);
     }
     
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    .top-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 1.5rem; }
+    .card { background: var(--card-bg); border-radius: 16px; padding: 1.5rem; border: 1px solid var(--card-border); }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+    .card-title { font-size: 0.85rem; font-weight: 700; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card-value { font-size: 2.8rem; font-weight: 800; line-height: 1; }
+    
+    .icon-box { width: 36px; height: 36px; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; font-weight: bold; }
+    .icon-blue { background: var(--blue-bg); color: var(--blue); }
+    .icon-green { background: var(--green-bg); color: var(--green); }
+    .icon-red { background: var(--red-bg); color: var(--red); }
+    .icon-orange { background: rgba(245, 158, 11, 0.15); color: var(--orange); }
+
+    .main-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; }
+    
+    .readiness-card { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2.5rem 1.5rem; }
+    .readiness-title { align-self: flex-start; font-size: 1.2rem; font-weight: 700; margin-bottom: 2.5rem; margin-top: -1rem; }
+    
+    .circle-wrap {
+      width: 200px; height: 200px; background: rgba(255, 255, 255, 0.05); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 2rem;
+    }
+    .circle-wrap::before {
+      content: ""; position: absolute; inset: 0; border-radius: 50%;
+      background: conic-gradient(var(--green) calc(var(--percent) * 1%), transparent 0);
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 16px), #fff calc(100% - 15px));
+      mask: radial-gradient(farthest-side, transparent calc(100% - 16px), #fff calc(100% - 15px));
+    }
+    .circle-wrap::after {
+      content: ""; position: absolute; inset: -5px; border-radius: 50%;
+      background: conic-gradient(var(--green) calc(var(--percent) * 1%), transparent 0);
+      filter: blur(12px); opacity: 0.4; z-index: -1;
+    }
+    .circle-wrap.fail::before, .circle-wrap.fail::after {
+      background: conic-gradient(var(--red) calc(var(--percent) * 1%), transparent 0);
     }
     
-    body {
-      font-family: 'Outfit', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 2.5rem 1.5rem;
-      background-image: 
-        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
-    }
+    .circle-inner { text-align: center; }
+    .circle-val { font-size: 2.5rem; font-weight: 800; line-height: 1.2; }
+    .circle-label { font-size: 0.85rem; font-weight: 700; color: #a1a1aa; letter-spacing: 1px; }
+    .readiness-note { font-size: 0.95rem; color: #a1a1aa; font-weight: 500; }
+    .readiness-note span { color: var(--green); font-weight: 700; }
     
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    
-    header {
-      margin-bottom: 3rem;
-      text-align: center;
-    }
-    
-    h1 {
-      font-size: 2.5rem;
-      font-weight: 700;
-      letter-spacing: -0.05em;
-      margin-bottom: 0.5rem;
-      background: linear-gradient(135deg, #fff 0%, var(--text-muted) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    
-    .subtitle {
-      color: var(--text-muted);
-      font-size: 1.1rem;
-    }
-    
-    /* Stats Grid */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1.5rem;
-      margin-bottom: 3rem;
-    }
-    
-    .stat-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 1.75rem;
-      text-align: center;
-      backdrop-filter: blur(12px);
-      transition: transform 0.3s ease, border-color 0.3s ease;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .stat-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, transparent, var(--primary), transparent);
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-    
-    .stat-card:hover {
-      transform: translateY(-5px);
-      border-color: rgba(255, 255, 255, 0.15);
-    }
-    
-    .stat-card:hover::before {
-      opacity: 1;
-    }
-    
-    .stat-card.success::before {
-      background: linear-gradient(90deg, transparent, var(--success), transparent);
-    }
-    
-    .stat-card.error::before {
-      background: linear-gradient(90deg, transparent, var(--error), transparent);
-    }
-    
-    .stat-label {
-      color: var(--text-muted);
-      font-size: 0.9rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.75rem;
-    }
-    
-    .stat-value {
-      font-size: 2.75rem;
-      font-weight: 700;
-      line-height: 1;
-    }
-    
-    /* Charts */
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-      margin-bottom: 3rem;
-    }
-    
-    @media (max-width: 768px) {
-      .grid-2 {
-        grid-template-columns: 1fr;
-      }
-    }
-    
-    .chart-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 2rem;
-      backdrop-filter: blur(12px);
-    }
-    
-    .chart-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin-bottom: 1.5rem;
-      border-bottom: 1px solid var(--card-border);
-      padding-bottom: 0.75rem;
-    }
-    
-    /* Table styling */
-    .table-container {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      overflow: hidden;
-      margin-bottom: 3rem;
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-    
-    th {
-      background: rgba(255, 255, 255, 0.02);
-      padding: 1rem 1.5rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      font-size: 0.9rem;
-      border-bottom: 1px solid var(--card-border);
-    }
-    
-    td {
-      padding: 1.25rem 1.5rem;
-      border-bottom: 1px solid var(--card-border);
-      font-size: 0.95rem;
-    }
-    
-    tr:last-child td {
-      border-bottom: none;
-    }
-    
-    tr:hover td {
-      background: rgba(255, 255, 255, 0.01);
-    }
-    
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.25rem 0.75rem;
-      border-radius: 9999px;
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-    
-    .badge.success {
-      background: var(--success-glow);
-      color: var(--success);
-    }
-    
-    .badge.error {
-      background: var(--error-glow);
-      color: var(--error);
-    }
-    
-    /* Tabs */
-    .tabs {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
-    
-    .tab-btn {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      color: var(--text-muted);
-      padding: 0.75rem 1.5rem;
-      border-radius: 9999px;
-      cursor: pointer;
-      font-family: inherit;
-      font-weight: 600;
-      transition: all 0.3s ease;
-    }
-    
-    .tab-btn.active {
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
-      box-shadow: 0 4px 12px var(--primary-glow);
-    }
-    
-    .tab-content {
-      display: none;
-    }
-    
-    .tab-content.active {
-      display: block;
+    .category-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 1.5rem; }
+    .category-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; row-gap: 2rem; }
+    .cat-item { display: flex; flex-direction: column; }
+    .cat-header { display: flex; justify-content: space-between; font-weight: 700; font-size: 1rem; margin-bottom: 0.6rem; }
+    .cat-count { font-size: 0.9rem; color: #a1a1aa; }
+    .progress-bg { height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; margin-bottom: 0.6rem; }
+    .progress-bar { height: 100%; background: var(--green); border-radius: 3px; box-shadow: 0 0 10px var(--green); }
+    .cat-footer { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; color: #a1a1aa; }
+    .cat-perfect { color: var(--green); letter-spacing: 0.5px; }
+
+    @media (max-width: 1024px) {
+      .top-cards { grid-template-columns: repeat(2, 1fr); }
+      .main-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>ParcelVault Automation QA Suite</h1>
-      <p class="subtitle">Unified Test Execution Report & Verification Dashboard</p>
-    </header>
-    
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">Total Tests</div>
-        <div class="stat-value" style="color: var(--accent);">${totalTests}</div>
+    <div class="header">
+      <div>
+        <h1>ParcelVault App</h1>
+        <div class="subtitle"><div class="dot" style="\${isDeployable ? '' : 'background: var(--red); box-shadow: 0 0 8px var(--red);'}"></div> E2E Automated QA Suite Analysis</div>
       </div>
-      <div class="stat-card success">
-        <div class="stat-label">Passed</div>
-        <div class="stat-value" style="color: var(--success);">${totalPassed}</div>
-      </div>
-      <div class="stat-card error">
-        <div class="stat-label">Failed</div>
-        <div class="stat-value" style="color: var(--error);">${totalFailed}</div>
-      </div>
-      <div class="stat-card success">
-        <div class="stat-label">Pass Rate</div>
-        <div class="stat-value" style="color: var(--success);">${passRate}%</div>
+      <div class="deploy-badge \${isDeployable ? '' : 'not-deployable'}">
+        \${isDeployable ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> DEPLOYABLE' : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> NOT DEPLOYABLE'}
       </div>
     </div>
-    
-    <div class="grid-2">
-      <div class="chart-card">
-        <h3 class="chart-title">Platform Summary</h3>
-        <table style="border: none;">
-          <thead>
-            <tr>
-              <th>Platform</th>
-              <th>Total</th>
-              <th>Pass</th>
-              <th>Fail</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>🌐 Web (Selenium)</td>
-              <td>${seleniumStats.total}</td>
-              <td>${seleniumStats.passed}</td>
-              <td style="color: ${seleniumStats.failed > 0 ? 'var(--error)' : 'inherit'}">${seleniumStats.failed}</td>
-            </tr>
-            <tr>
-              <td>📱 Android (Appium)</td>
-              <td>${appiumStats.total}</td>
-              <td>${appiumStats.passed}</td>
-              <td>0</td>
-            </tr>
-          </tbody>
-        </table>
+
+    <div class="top-cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Total Test Cases</div>
+          <div class="icon-box icon-blue">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18"></rect><rect x="10" y="8" width="4" height="13"></rect><rect x="2" y="13" width="4" height="8"></rect></svg>
+          </div>
+        </div>
+        <div class="card-value">\${totalTests}</div>
       </div>
-      
-      <div class="chart-card">
-        <h3 class="chart-title">Execution Info</h3>
-        <p style="margin-bottom: 0.75rem;"><strong style="color: var(--text-muted);">Duration:</strong> ${(seleniumStats.duration + appiumStats.duration).toFixed(1)}s</p>
-        <p style="margin-bottom: 0.75rem;"><strong style="color: var(--text-muted);">Environment:</strong> GitHub Actions CI (Ubuntu Runner)</p>
-        <p style="margin-bottom: 0.75rem;"><strong style="color: var(--text-muted);">Timestamp:</strong> ${new Date().toUTCString()}</p>
-        <p><strong style="color: var(--text-muted);">Status:</strong> <span class="badge ${totalFailed === 0 ? 'success' : 'error'}">${totalFailed === 0 ? 'Passed' : 'Failed'}</span></p>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Assertions Passed</div>
+          <div class="icon-box icon-green">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+        </div>
+        <div class="card-value">\${totalPassed}</div>
       </div>
-    </div>
-    
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('selenium')">Selenium Web (${seleniumStats.total})</button>
-      <button class="tab-btn" onclick="switchTab('appium')">Appium Android (${appiumStats.total})</button>
-    </div>
-    
-    <div id="selenium" class="tab-content active">
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Category</th>
-              <th>Scenario</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${seleniumStats.cases.map(c => `
-              <tr>
-                <td><strong>${c.id}</strong></td>
-                <td style="color: var(--text-muted);">${c.category}</td>
-                <td>${c.scenario}</td>
-                <td><span class="badge ${c.status === 'Passed' ? 'success' : 'error'}">${c.status}</span></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Assertions Failed</div>
+          <div class="icon-box icon-red">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </div>
+        </div>
+        <div class="card-value">\${totalFailed}</div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Verification Rate</div>
+          <div class="icon-box icon-orange">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          </div>
+        </div>
+        <div class="card-value">\${passRate}%</div>
       </div>
     </div>
-    
-    <div id="appium" class="tab-content">
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Category</th>
-              <th>Scenario</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${appiumStats.cases.map(c => `
-              <tr>
-                <td><strong>${c.id}</strong></td>
-                <td style="color: var(--text-muted);">${c.category}</td>
-                <td>${c.scenario}</td>
-                <td><span class="badge success">${c.status}</span></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+
+    <div class="main-grid">
+      <div class="card readiness-card">
+        <div class="readiness-title">Readiness Rate</div>
+        <div class="circle-wrap \${isDeployable ? '' : 'fail'}" style="--percent: \${passRate};">
+          <div class="circle-inner">
+            <div class="circle-val">\${passRate}%</div>
+            <div class="circle-label">PASS SCORE</div>
+          </div>
+        </div>
+        <div class="readiness-note">Requires <span style="\${isDeployable ? '' : 'color: var(--red);'}">≥ 95%</span> pass score to deploy.</div>
+      </div>
+
+      <div class="card">
+        <div class="category-title">Verify Status by Category</div>
+        <div class="category-grid">
+          \${Object.values(categoryStats).map(cat => {
+            const catPassRate = ((cat.passed / cat.total) * 100).toFixed(0);
+            const isPerfect = catPassRate == 100;
+            return \`
+              <div class="cat-item">
+                <div class="cat-header">
+                  <span>\${cat.name}</span>
+                  <span class="cat-count">\${cat.passed}/\${cat.total}</span>
+                </div>
+                <div class="progress-bg">
+                  <div class="progress-bar" style="width: \${catPassRate}%; \${isPerfect ? '' : 'background: var(--red); box-shadow: 0 0 10px var(--red);'}"></div>
+                </div>
+                <div class="cat-footer">
+                  <span>Score: \${catPassRate}%</span>
+                  <span class="\${isPerfect ? 'cat-perfect' : ''}" style="\${isPerfect ? '' : 'color: var(--red);'}">\${isPerfect ? 'PERFECT' : 'NEEDS WORK'}</span>
+                </div>
+              </div>
+            \`;
+          }).join('')}
+        </div>
       </div>
     </div>
   </div>
-  
-  <script>
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      
-      document.getElementById(tabId).classList.add('active');
-      event.target.classList.add('active');
-    }
-  </script>
 </body>
 </html>`;
 
