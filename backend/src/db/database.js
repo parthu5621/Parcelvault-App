@@ -49,6 +49,15 @@ function runSqliteQuery(sql, params = []) {
     return p;
   });
 
+  const trimmed = sql.trim().toUpperCase();
+  if (trimmed.startsWith('SET FOREIGN_KEY_CHECKS')) {
+    const val = trimmed.includes('0') ? 'OFF' : 'ON';
+    sqliteSql = `PRAGMA foreign_keys = ${val};`;
+  } else if (trimmed.startsWith('TRUNCATE TABLE')) {
+    const tableName = sql.trim().split(/\s+/)[2];
+    sqliteSql = `DELETE FROM ${tableName};`;
+  }
+
   const isSelect = /^\s*(SELECT|PRAGMA|EXPLAIN)/i.test(sqliteSql);
 
   try {
