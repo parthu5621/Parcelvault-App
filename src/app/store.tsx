@@ -196,7 +196,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<Student | Admin | null>(null);
   const [currentRole, setCurrentRole] = useState<'student' | 'admin' | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [students, setStudents] = useState<Student[]>(DEFAULT_STUDENTS);
+  const [students, setStudents] = useState<Student[]>([]);
   const [admins, setAdmins] = useState<Admin[]>(DEFAULT_ADMINS);
   const [lockers, setLockers] = useState<Locker[]>(DEFAULT_LOCKERS);
   const [parcels, setParcels] = useState<Parcel[]>(DEFAULT_PARCELS);
@@ -216,13 +216,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         notificationsApi.list().catch(() => ({ success: false, data: [] })),
       ]);
 
-      if (pRes.success && pRes.data && pRes.data.length > 0) setParcels(pRes.data);
-      if (lRes.success && lRes.data && lRes.data.length > 0) setLockers(lRes.data);
-      if (nRes.success && nRes.data && nRes.data.length > 0) setNotifications(nRes.data);
+      if (pRes.success && pRes.data) setParcels(pRes.data);
+      if (lRes.success && lRes.data) setLockers(lRes.data);
+      if (nRes.success && nRes.data) setNotifications(nRes.data);
 
       if (currentRole === 'admin') {
         const sRes = await studentsApi.list().catch(() => ({ success: false, data: [] }));
-        if (sRes.success && sRes.data && sRes.data.length > 0) setStudents(sRes.data);
+        if (sRes.success && sRes.data) setStudents(sRes.data);
       }
     } catch (err) {
       console.error('Failed to sync backend data:', err);

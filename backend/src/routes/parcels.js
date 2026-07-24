@@ -117,36 +117,51 @@ router.post('/verify-qr', authenticate, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Empty QR code token string' });
     }
 
-    const [rows] = await db.query(`
+    const placeholders = searchList.map(() => '?').join(', ');
+    const querySql = `
       SELECT p.*, s.student_id AS student_code 
       FROM parcels p 
       LEFT JOIN students s ON p.student_id = s.id 
       WHERE (
-        p.id IN (?) OR 
-        p.tracking_id IN (?) OR 
-        p.pickup_token IN (?) OR 
-        p.otp IN (?) OR
-        p.qr_code_data IN (?)
+        p.id IN (${placeholders}) OR 
+        p.tracking_id IN (${placeholders}) OR 
+        p.pickup_token IN (${placeholders}) OR 
+        p.otp IN (${placeholders}) OR
+        p.qr_code_data IN (${placeholders})
       )
-    `, [searchList, searchList, searchList, searchList, searchList]);
+    `;
+    const flatParams = [
+      ...searchList,
+      ...searchList,
+      ...searchList,
+      ...searchList,
+      ...searchList
+    ];
 
+    const [rows] = await db.query(querySql, flatParams);
     let parcel = rows[0];
 
-    // Fallback search if exact match in IN clause missed due to substring or token prefix
+    // Fallback search if exact match in IN clause missed
     if (!parcel) {
-      const cleanToken = rawStr.replace('PV-TOKEN-', '').trim();
-      const [fallbackRows] = await db.query(`
-        SELECT p.*, s.student_id AS student_code 
-        FROM parcels p 
-        LEFT JOIN students s ON p.student_id = s.id 
-        WHERE (
-          p.pickup_token LIKE ? OR 
-          p.otp = ? OR 
-          p.tracking_id = ? OR
-          p.id = ?
-        )
-      `, [`%${cleanToken}%`, cleanToken, cleanToken, cleanToken]);
-      parcel = fallbackRows[0];
+      for (const tokenItem of searchList) {
+        const cleanToken = tokenItem.replace('PV-TOKEN-', '').trim();
+        if (!cleanToken) continue;
+        const [fallbackRows] = await db.query(`
+          SELECT p.*, s.student_id AS student_code 
+          FROM parcels p 
+          LEFT JOIN students s ON p.student_id = s.id 
+          WHERE (
+            p.pickup_token LIKE ? OR 
+            p.otp = ? OR 
+            p.tracking_id = ? OR
+            p.id = ?
+          )
+        `, [`%${cleanToken}%`, cleanToken, cleanToken, cleanToken]);
+        if (fallbackRows[0]) {
+          parcel = fallbackRows[0];
+          break;
+        }
+      }
     }
 
     if (!parcel) {

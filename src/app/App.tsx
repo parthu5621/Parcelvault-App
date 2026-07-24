@@ -101,9 +101,9 @@ function AppInner() {
       {currentScreen === 'onboarding2' && <Onboarding2 onNext={() => navigate('onboarding3')} onSkip={() => navigate('welcome')} />}
       {currentScreen === 'onboarding3' && <Onboarding3 onComplete={() => navigate('welcome')} />}
       {currentScreen === 'welcome' && <WelcomeScreen onLogin={() => navigate('login')} onRegister={() => navigate('register')} onAdminLogin={() => navigate('admin-login')} />}
-      {currentScreen === 'login' && <LoginScreen onLogin={handleLogin} onBack={() => navigate('welcome')} onForgotPassword={() => navigate('forgot-password')} showToast={showToast} />}
+      {currentScreen === 'login' && <LoginScreen onLogin={handleLogin} onBack={() => navigate('welcome')} onRegister={() => navigate('register')} onForgotPassword={() => navigate('forgot-password')} showToast={showToast} />}
       {currentScreen === 'admin-login' && <AdminLoginScreen onLogin={handleLogin} onBack={() => navigate('welcome')} showToast={showToast} />}
-      {currentScreen === 'register' && <RegisterScreen onRegister={() => { showToast('Account created! Please login.', 'success'); navigate('login'); }} onBack={() => navigate('welcome')} showToast={showToast} />}
+      {currentScreen === 'register' && <RegisterScreen onRegister={() => { showToast('Account created! Please login.', 'success'); navigate('login'); }} onLogin={() => navigate('login')} onBack={() => navigate('welcome')} showToast={showToast} />}
       {currentScreen === 'forgot-password' && <ForgotPasswordScreen onBack={() => navigate('login')} onSent={() => { showToast('Reset link sent to your email', 'success'); navigate('login'); }} />}
       {currentScreen === 'reset-password' && <ResetPasswordScreen onBack={() => navigate('login')} onReset={() => navigate('login')} />}
       {currentScreen === 'logout-confirmation' && <LogoutConfirmationScreen onCancel={() => navigate(currentRole === 'admin' ? 'admin-dashboard' : 'user-profile')} onLogout={handleLogout} />}
@@ -729,7 +729,7 @@ function WelcomeScreen({ onLogin, onRegister, onAdminLogin }: { onLogin: () => v
   );
 }
 
-function LoginScreen({ onLogin, onBack, onForgotPassword, showToast }: any) {
+function LoginScreen({ onLogin, onBack, onRegister, onForgotPassword, showToast }: any) {
   const { login } = useStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -961,6 +961,19 @@ function LoginScreen({ onLogin, onBack, onForgotPassword, showToast }: any) {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+
+          <div className="text-center pt-2">
+            <p className="text-slate-500 text-xs">
+              Don't have an account?{' '}
+              <button
+                type="button"
+                onClick={onRegister}
+                className="text-purple-600 font-bold hover:underline"
+              >
+                Create Account
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -1115,7 +1128,7 @@ function AdminLoginScreen({ onLogin, onBack, showToast }: any) {
   );
 }
 
-function RegisterScreen({ onRegister, onBack, showToast }: any) {
+function RegisterScreen({ onRegister, onLogin, onBack, showToast }: any) {
   const { register } = useStore();
   const [role, setRole] = useState<'student' | 'admin'>('student');
   const [name, setName] = useState('');
@@ -1201,6 +1214,19 @@ function RegisterScreen({ onRegister, onBack, showToast }: any) {
         <InputField icon={<Lock className="w-5 h-5" />} label="Confirm Password" type="password" placeholder="Repeat password" value={confirm} onChange={e => setConfirm(e.target.value)} />
         
         <PrimaryBtn id="register-button" onClick={handleSubmit} disabled={loading}>{loading ? 'Creating Account…' : role === 'admin' ? 'Register Admin' : 'Create Student Account'}</PrimaryBtn>
+
+        <div className="text-center pt-2">
+          <p className="text-zinc-400 text-xs">
+            Already have an account?{' '}
+            <button
+              type="button"
+              onClick={onLogin}
+              className="text-purple-400 font-bold hover:underline"
+            >
+              Sign In
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -1857,6 +1883,28 @@ function UserProfileScreen({ navigate }: any) {
   );
 }
 
+function LogoutConfirmationScreen({ onCancel, onLogout }: { onCancel: () => void; onLogout: () => void }) {
+  return (
+    <div className="size-full flex items-center justify-center bg-black/80 backdrop-blur p-6">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4">
+        <div className="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mx-auto">
+          <LogOut className="w-8 h-8" />
+        </div>
+        <h3 className="text-xl font-bold text-white">Log Out?</h3>
+        <p className="text-zinc-400 text-sm">Are you sure you want to log out of your account?</p>
+        <div className="space-y-2 pt-2">
+          <button id="confirm-logout-btn" onClick={onLogout} className="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl text-sm transition-all">
+            Yes, Log Out
+          </button>
+          <button onClick={onCancel} className="w-full py-3 bg-zinc-800 text-zinc-300 font-semibold rounded-2xl text-sm hover:bg-zinc-700 transition-all">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EditProfileScreen({ navigate, showToast }: any) {
   const { currentUser, setCurrentUser } = useStore();
   const student = currentUser as any;
@@ -2154,12 +2202,12 @@ function AdminDashboard({ navigate }: any) {
           <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-3">Core Actions</h3>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { title: 'Add Parcel', sub: 'Register delivery', icon: Plus, color: 'from-blue-500 to-blue-600', route: 'add-parcel' },
-              { title: 'Assign Locker', sub: 'Allocate + notify student', icon: LockIcon, color: 'from-purple-500 to-purple-600', route: 'assign-locker' },
-              { title: 'Verify & Issue', sub: 'Verify student OTP', icon: ShieldCheck, color: 'from-orange-500 to-orange-600', route: 'generate-otp' },
-              { title: 'Pending Parcels', sub: `${pending} waiting`, icon: Clock, color: 'from-yellow-500 to-orange-500', route: 'pending-pickup-requests' },
+              { title: 'Add Parcel', id: 'add-parcel-btn', sub: 'Register delivery', icon: Plus, color: 'from-blue-500 to-blue-600', route: 'add-parcel' },
+              { title: 'Assign Locker', id: 'assign-locker-btn', sub: 'Allocate + notify student', icon: LockIcon, color: 'from-purple-500 to-purple-600', route: 'assign-locker' },
+              { title: 'Verify & Issue', id: 'verify-issue-btn', sub: 'Verify student OTP', icon: ShieldCheck, color: 'from-orange-500 to-orange-600', route: 'generate-otp' },
+              { title: 'Pending Parcels', id: 'pending-parcels-btn', sub: `${pending} waiting`, icon: Clock, color: 'from-yellow-500 to-orange-500', route: 'pending-pickup-requests' },
             ].map(item => (
-              <button key={item.title} onClick={() => navigate(item.route as Screen)} className={`bg-gradient-to-br ${item.color} rounded-2xl p-5 text-left shadow-lg active:scale-95 transition-transform`}>
+              <button key={item.title} id={item.id} onClick={() => navigate(item.route as Screen)} className={`bg-gradient-to-br ${item.color} rounded-2xl p-5 text-left shadow-lg active:scale-95 transition-transform`}>
                 <item.icon className="w-7 h-7 text-white mb-3" />
                 <h3 className="text-white font-semibold text-sm">{item.title}</h3>
                 <p className="text-white/70 text-xs mt-0.5">{item.sub}</p>
@@ -2173,14 +2221,14 @@ function AdminDashboard({ navigate }: any) {
           <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-3">Management</h3>
           <div className="space-y-2">
             {[
-              { label: 'Parcel Management', sub: `${parcels.length} total parcels`, icon: <Package className="w-5 h-5 text-purple-400" />, route: 'parcel-management' },
-              { label: 'User Management', sub: `${students.length} students`, icon: <Users className="w-5 h-5 text-blue-400" />, route: 'user-management' },
-              { label: 'Completed Pickups', sub: `${collected} completed`, icon: <CheckCircle2 className="w-5 h-5 text-emerald-400" />, route: 'completed-pickup' },
-              { label: 'Reports & Analytics', sub: 'View insights', icon: <BarChart3 className="w-5 h-5 text-orange-400" />, route: 'reports-analytics' },
-              { label: 'Student Feedback', sub: 'View submitted feedback', icon: <MessageSquare className="w-5 h-5 text-pink-400" />, route: 'admin-feedback' },
-              { label: 'Admin Notifications', sub: 'System alerts', icon: <Bell className="w-5 h-5 text-yellow-400" />, route: 'admin-notifications' },
+              { label: 'Parcel Management', id: 'parcel-mgmt-btn', sub: `${parcels.length} total parcels`, icon: <Package className="w-5 h-5 text-purple-400" />, route: 'parcel-management' },
+              { label: 'User Management', id: 'user-mgmt-btn', sub: `${students.length} students`, icon: <Users className="w-5 h-5 text-blue-400" />, route: 'user-management' },
+              { label: 'Completed Pickups', id: 'completed-pickups-btn', sub: `${collected} completed`, icon: <CheckCircle2 className="w-5 h-5 text-emerald-400" />, route: 'completed-pickup' },
+              { label: 'Reports & Analytics', id: 'reports-analytics-btn', sub: 'View insights', icon: <BarChart3 className="w-5 h-5 text-orange-400" />, route: 'reports-analytics' },
+              { label: 'Student Feedback', id: 'student-feedback-btn', sub: 'View submitted feedback', icon: <MessageSquare className="w-5 h-5 text-pink-400" />, route: 'admin-feedback' },
+              { label: 'Admin Notifications', id: 'admin-notifications-btn', sub: 'System alerts', icon: <Bell className="w-5 h-5 text-yellow-400" />, route: 'admin-notifications' },
             ].map(item => (
-              <button key={item.label} onClick={() => navigate(item.route as Screen)} className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-4 flex items-center justify-between hover:border-purple-500/50 transition-colors">
+              <button key={item.label} id={item.id} onClick={() => navigate(item.route as Screen)} className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-4 flex items-center justify-between hover:border-purple-500/50 transition-colors">
                 <div className="flex items-center gap-3">
                   {item.icon}
                   <div className="text-left">
@@ -2237,7 +2285,9 @@ function AddParcelScreen({ navigate, showToast }: any) {
             <select value={studentId} onChange={e => setStudentId(e.target.value)}
               className="w-full bg-zinc-900 text-white pl-12 pr-4 py-4 rounded-2xl border border-zinc-800 focus:border-purple-500 focus:outline-none appearance-none">
               <option value="">Select student…</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.name} ({s.studentId})</option>)}
+              {students.filter(s => s.studentId && (s as any).role !== 'admin').map(s => (
+                <option key={s.id} value={s.id}>{s.name} ({s.studentId})</option>
+              ))}
             </select>
           </div>
         </div>
@@ -2339,7 +2389,7 @@ function AssignLockerScreen({ navigate, showToast }: any) {
             </button>
             <p className="text-zinc-400 text-xs mt-4">Share this OTP with the student to collect their parcel from Locker <span className="text-purple-300">{parcel?.lockerLabel}</span></p>
             <div className="mt-6 space-y-3">
-              <PrimaryBtn onClick={() => navigate('admin-dashboard')}>Back to Dashboard</PrimaryBtn>
+              <PrimaryBtn id="back-to-admin-dashboard-btn" onClick={() => navigate('admin-dashboard')}>Back to Dashboard</PrimaryBtn>
               <SecondaryBtn onClick={() => { setAssignedOtp(null); setSelectedParcelId(null); }}>Assign Another</SecondaryBtn>
             </div>
           </div>
@@ -3234,22 +3284,6 @@ function FeedbackScreen({ navigate, showToast }: any) {
           <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Tell us what you think, what went wrong, or how we can improve…" rows={6} className="w-full bg-zinc-900 text-white px-4 py-4 rounded-2xl border border-zinc-800 focus:border-purple-500 focus:outline-none resize-none placeholder:text-zinc-600" />
         </div>
         <PrimaryBtn onClick={handleSubmit} disabled={loading}>{loading ? 'Submitting...' : 'Submit Feedback'}</PrimaryBtn>
-      </div>
-    </div>
-  );
-}
-
-function LogoutConfirmationScreen({ onCancel, onLogout }: { onCancel: () => void; onLogout: () => void }) {
-  return (
-    <div className="size-full flex flex-col items-center justify-center bg-zinc-950 px-6">
-      <div className="w-24 h-24 bg-red-500/10 rounded-3xl flex items-center justify-center mb-6">
-        <LogOut className="w-12 h-12 text-red-400" />
-      </div>
-      <h2 className="text-2xl font-bold text-white mb-2">Logout</h2>
-      <p className="text-zinc-400 text-center mb-10">Are you sure you want to logout from ParcelVault?</p>
-      <div className="w-full max-w-md space-y-3">
-        <button onClick={onLogout} className="w-full bg-red-500/10 border border-red-500/30 text-red-400 py-4 rounded-2xl font-semibold hover:bg-red-500/20 transition-colors">Confirm Logout</button>
-        <SecondaryBtn onClick={onCancel}>Cancel</SecondaryBtn>
       </div>
     </div>
   );

@@ -16,10 +16,17 @@ const mapStudent = (row) => ({
 });
 
 // ─── GET /api/students ─────────────────────────────────────────────────────────
-// Admin: all students
+// Admin: all student accounts only (strictly excludes admin accounts)
 router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM students ORDER BY name');
+    const [rows] = await db.query(`
+      SELECT * FROM students 
+      WHERE student_id IS NOT NULL AND student_id != ''
+        AND LOWER(name) NOT LIKE '%admin%'
+        AND LOWER(email) NOT LIKE '%admin%'
+        AND email NOT IN (SELECT email FROM admins)
+      ORDER BY name
+    `);
     res.json({ success: true, data: rows.map(mapStudent) });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Internal server error' });
@@ -27,13 +34,17 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 });
 
 // ─── GET /api/students/search ──────────────────────────────────────────────────
-// Admin: search by name, email, or student ID
+// Admin: search by name, email, or student ID (students only, strictly excludes admin accounts)
 router.get('/search', authenticate, requireAdmin, async (req, res) => {
   try {
     const q = `%${req.query.q || ''}%`;
     const [rows] = await db.query(`
       SELECT * FROM students
-      WHERE name LIKE ? OR email LIKE ? OR student_id LIKE ?
+      WHERE (name LIKE ? OR email LIKE ? OR student_id LIKE ?)
+        AND student_id IS NOT NULL AND student_id != ''
+        AND LOWER(name) NOT LIKE '%admin%'
+        AND LOWER(email) NOT LIKE '%admin%'
+        AND email NOT IN (SELECT email FROM admins)
       ORDER BY name LIMIT 20
     `, [q, q, q]);
     res.json({ success: true, data: rows.map(mapStudent) });

@@ -9,11 +9,13 @@
     "test:auth": "mocha tests/02_auth.test.js --timeout 60000 --reporter spec --exit",
     "test:student": "mocha tests/03_student_flow.test.js --timeout 60000 --reporter spec --exit",
     "test:admin": "mocha tests/04_admin_flow.test.js --timeout 60000 --reporter spec --exit",
+    "test:e2e": "node e2e_appium_suite.js",
     "test:all": "mocha 'tests/**/*.test.js' --timeout 60000 --reporter mocha-junit-reporter --reporter-options mochaFile=./test-results/test-results.xml --exit"
   },
   "dependencies": {
     "@wdio/appium-service": "^9.0.0",
     "appium": "^2.11.0",
+    "exceljs": "^4.4.0",
     "webdriverio": "^9.0.0"
   },
   "devDependencies": {

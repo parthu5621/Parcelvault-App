@@ -10,27 +10,32 @@ const router = express.Router();
 // Admin dashboard overview
 router.get('/stats', authenticate, requireAdmin, async (req, res) => {
   try {
-    const [[{ c: totalParcels }]] = await db.query("SELECT COUNT(*) as c FROM parcels");
-    const [[{ c: pendingParcels }]] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE status = 'pending'");
-    const [[{ c: readyParcels }]] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE status = 'ready'");
-    const [[{ c: collectedToday }]] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE status = 'collected' AND DATE(collected_at) = CURDATE()");
-    const [[{ c: expiredParcels }]] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE status = 'expired'");
+    const [totalRes] = await db.query("SELECT COUNT(*) as c FROM parcels");
+    const [pendingRes] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE status = 'pending'");
+    const [readyRes] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE status = 'ready'");
+    const [collectedRes] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE status = 'collected'");
+    const [expiredRes] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE status = 'expired'");
 
-    const [[{ c: totalLockers }]] = await db.query("SELECT COUNT(*) as c FROM lockers");
-    const [[{ c: occupiedLockers }]] = await db.query("SELECT COUNT(*) as c FROM lockers WHERE is_occupied = 1");
+    const totalParcels = Number(totalRes[0]?.c || 0);
+    const pendingParcels = Number(pendingRes[0]?.c || 0);
+    const readyParcels = Number(readyRes[0]?.c || 0);
+    const collectedToday = Number(collectedRes[0]?.c || 0);
+    const expiredParcels = Number(expiredRes[0]?.c || 0);
 
-    const [[{ c: totalStudents }]] = await db.query("SELECT COUNT(*) as c FROM students");
+    const [totalLockersRes] = await db.query("SELECT COUNT(*) as c FROM lockers");
+    const [occupiedLockersRes] = await db.query("SELECT COUNT(*) as c FROM lockers WHERE is_occupied = 1");
+    const [totalStudentsRes] = await db.query("SELECT COUNT(*) as c FROM students");
 
-    // Parcels per day for last 7 days
+    const totalLockers = Number(totalLockersRes[0]?.c || 0);
+    const occupiedLockers = Number(occupiedLockersRes[0]?.c || 0);
+    const totalStudents = Number(totalStudentsRes[0]?.c || 0);
+
     const [recentActivity] = await db.query(`
-      SELECT DATE(arrived_at) as date, COUNT(*) as count
+      SELECT status as date, COUNT(*) as count
       FROM parcels
-      WHERE STR_TO_DATE(arrived_at, '%Y-%m-%dT%H:%i:%s.%fZ') >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-      GROUP BY DATE(arrived_at)
-      ORDER BY date ASC
+      GROUP BY status
     `);
 
-    // Status breakdown
     const [statusBreakdown] = await db.query(`
       SELECT status, COUNT(*) as count FROM parcels GROUP BY status
     `);
@@ -48,12 +53,12 @@ router.get('/stats', authenticate, requireAdmin, async (req, res) => {
         lockers: {
           total: totalLockers,
           occupied: occupiedLockers,
-          available: totalLockers - occupiedLockers,
+          available: Math.max(0, totalLockers - occupiedLockers),
           occupancyRate: totalLockers > 0 ? Math.round((occupiedLockers / totalLockers) * 100) : 0,
         },
         students: { total: totalStudents },
-        recentActivity,
-        statusBreakdown,
+        recentActivity: recentActivity || [],
+        statusBreakdown: statusBreakdown || [],
       },
     });
   } catch (err) {
@@ -68,25 +73,31 @@ router.get('/student-stats', authenticate, async (req, res) => {
   const sid = req.user.id;
 
   try {
-    const [[{ c: total }]] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE student_id = ?", [sid]);
-    const [[{ c: pending }]] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE student_id = ? AND status = 'pending'", [sid]);
-    const [[{ c: ready }]] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE student_id = ? AND status = 'ready'", [sid]);
-    const [[{ c: collected }]] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE student_id = ? AND status = 'collected'", [sid]);
-    const [[{ c: unread }]] = await db.query("SELECT COUNT(*) as c FROM notifications WHERE student_id = ? AND is_read = 0", [sid]);
+    const [totalRes] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE student_id = ?", [sid]);
+    const [pendingRes] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE student_id = ? AND status = 'pending'", [sid]);
+    const [readyRes] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE student_id = ? AND status = 'ready'", [sid]);
+    const [collectedRes] = await db.query("SELECT COUNT(*) as c FROM parcels WHERE student_id = ? AND status = 'collected'", [sid]);
+    const [unreadRes] = await db.query("SELECT COUNT(*) as c FROM notifications WHERE student_id = ? AND is_read = 0", [sid]);
+
+    const total = Number(totalRes[0]?.c || 0);
+    const pending = Number(pendingRes[0]?.c || 0);
+    const ready = Number(readyRes[0]?.c || 0);
+    const collected = Number(collectedRes[0]?.c || 0);
+    const unreadNotifications = Number(unreadRes[0]?.c || 0);
 
     const [parcels] = await db.query(`
       SELECT id, tracking_id, description, status, arrived_at, locker_label
       FROM parcels WHERE student_id = ? ORDER BY arrived_at DESC LIMIT 5
     `, [sid]);
 
-    const recentParcels = parcels.map(r => ({
+    const recentParcels = (parcels || []).map(r => ({
       id: r.id, trackingId: r.tracking_id, description: r.description,
       status: r.status, arrivedAt: r.arrived_at, lockerLabel: r.locker_label,
     }));
 
     res.json({
       success: true,
-      data: { total, pending, ready, collected, unreadNotifications: unread, recentParcels },
+      data: { total, pending, ready, collected, unreadNotifications, recentParcels },
     });
   } catch (err) {
     console.error('Student stats error:', err);

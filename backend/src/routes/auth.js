@@ -76,7 +76,7 @@ router.post('/login', async (req, res) => {
     if (role === 'admin') {
       const [admins] = await db.query('SELECT * FROM admins WHERE LOWER(email) = ?', [email]);
       const admin = admins[0];
-      if (admin && bcrypt.compareSync(password, admin.password)) {
+      if (admin && (await bcrypt.compare(password, admin.password))) {
         console.log(`[AUTH LOG] Admin login successful: ${email}`);
         const token = jwt.sign(
           { id: admin.id, role: 'admin', email: admin.email, name: admin.name },
@@ -92,7 +92,7 @@ router.post('/login', async (req, res) => {
     } else {
       const [students] = await db.query('SELECT * FROM students WHERE LOWER(email) = ?', [email]);
       const student = students[0];
-      if (student && bcrypt.compareSync(password, student.password)) {
+      if (student && (await bcrypt.compare(password, student.password))) {
         console.log(`[AUTH LOG] Student login successful: ${email}`);
         const token = jwt.sign(
           { id: student.id, role: 'student', email: student.email, name: student.name },
@@ -111,7 +111,7 @@ router.post('/login', async (req, res) => {
     if (role === 'admin') {
       const [students] = await db.query('SELECT * FROM students WHERE LOWER(email) = ?', [email]);
       const student = students[0];
-      if (student && bcrypt.compareSync(password, student.password)) {
+      if (student && (await bcrypt.compare(password, student.password))) {
         console.log(`[AUTH LOG] Student login successful via fallback: ${email}`);
         const token = jwt.sign(
           { id: student.id, role: 'student', email: student.email, name: student.name },
@@ -127,7 +127,7 @@ router.post('/login', async (req, res) => {
     } else {
       const [admins] = await db.query('SELECT * FROM admins WHERE LOWER(email) = ?', [email]);
       const admin = admins[0];
-      if (admin && bcrypt.compareSync(password, admin.password)) {
+      if (admin && (await bcrypt.compare(password, admin.password))) {
         console.log(`[AUTH LOG] Admin login successful via fallback: ${email}`);
         const token = jwt.sign(
           { id: admin.id, role: 'admin', email: admin.email, name: admin.name },
@@ -338,7 +338,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Generate a 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     const id = randomUUID();
 
     await db.query('INSERT INTO password_resets (id, email, otp, expires_at) VALUES (?, ?, ?, ?)', [id, email, otp, expiresAt]);
@@ -403,7 +403,7 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid OTP' });
     }
 
-    if (new Date(resetRecord.expires_at) < new Date()) {
+    if (new Date(resetRecord.expires_at).getTime() < Date.now()) {
       return res.status(400).json({ success: false, error: 'OTP has expired' });
     }
 
@@ -461,7 +461,7 @@ router.post('/login-otp/send', async (req, res) => {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     const id = randomUUID();
 
     await db.query('DELETE FROM login_otps WHERE LOWER(email) = ?', [email]);
@@ -517,7 +517,7 @@ router.post('/login-otp/verify', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid OTP' });
     }
 
-    if (new Date(otpRecord.expires_at) < new Date()) {
+    if (new Date(otpRecord.expires_at).getTime() < Date.now()) {
       return res.status(400).json({ success: false, error: 'OTP has expired' });
     }
 

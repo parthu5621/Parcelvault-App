@@ -25,7 +25,7 @@ router.get('/', authenticate, async (req, res) => {
       [rows] = await db.query('SELECT * FROM notifications ORDER BY created_at DESC LIMIT 100');
     } else {
       [rows] = await db.query(
-        'SELECT * FROM notifications WHERE (student_id = ? OR student_id = ? OR student_id = "all" OR student_id = "student_all") ORDER BY created_at DESC',
+        "SELECT * FROM notifications WHERE (student_id = ? OR student_id = ? OR student_id = 'all' OR student_id = 'student_all') ORDER BY created_at DESC",
         [req.user.id, req.user.studentId || req.user.id]
       );
     }

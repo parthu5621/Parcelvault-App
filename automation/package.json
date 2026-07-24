@@ -1,0 +1,25 @@
+{
+  "name": "parcelvault-android-e2e-automation",
+  "version": "2.0.0",
+  "description": "Enterprise Appium Android Mobile E2E Automation Framework & CI/CD Pipeline",
+  "main": "runners/master_e2e_runner.js",
+  "scripts": {
+    "test": "node runners/master_e2e_runner.js",
+    "test:selenium:live": "node runners/run_selenium_suite.js",
+    "test:suite": "node runners/master_e2e_runner.js",
+    "report:excel": "node reports/excel_report_generator.js",
+    "report:html": "node reports/html_report_generator.js"
+  },
+  "dependencies": {
+    "@wdio/appium-service": "^9.0.0",
+    "appium": "^2.11.0",
+    "chromedriver": "^131.0.5",
+    "exceljs": "^4.4.0",
+    "fs-extra": "^11.2.0",
+    "selenium-webdriver": "^4.46.0",
+    "webdriverio": "^9.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^10.7.3"
+  }
+}

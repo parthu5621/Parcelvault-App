@@ -10,3 +10,5 @@ coverage/
 selenium-tests/test-results/
 !selenium-tests/test-results/.gitkeep
 android-tests/reports/
+automation/node_modules/
+automation/reports/
