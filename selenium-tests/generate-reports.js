@@ -360,6 +360,10 @@ async function run() {
 
   // Generate Beautiful HTML dashboard
   const htmlPath = path.join(rootDir, 'selenium-tests', 'test-results', 'dashboard.html');
+  const htmlDir = path.dirname(htmlPath);
+  if (!fs.existsSync(htmlDir)) {
+    fs.mkdirSync(htmlDir, { recursive: true });
+  }
   
   // Group by category only for the HTML dashboard
   const categoryStats = {};
