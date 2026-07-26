@@ -349,17 +349,39 @@ jobs:
             android-tests/test-results/
           retention-days: 7
 
+      - name: 'Build Web Application and Report Assets'
+        run: |
+          node selenium-tests/generate-reports.js || true
+          npm run build || true
+
       - name: 'Prepare GitHub Pages Publish Directory'
         if: always()
         run: |
-          mkdir -p pages-dist/reports
-          cp -r selenium-tests/test-results/* pages-dist/reports/ || true
-          cp -r selenium-tests/test-results/* pages-dist/ || true
+          mkdir -p dist/reports
+          cp -r selenium-tests/test-results/* dist/reports/ || true
+          cp -r selenium-tests/test-results/* dist/ || true
 
-      - name: 'Deploy QA Dashboard to GitHub Pages'
+      - name: 'Setup Pages'
+        if: always()
+        uses: actions/configure-pages@v5
+        continue-on-error: true
+
+      - name: 'Upload Pages Artifact'
+        if: always()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+        continue-on-error: true
+
+      - name: 'Deploy to GitHub Pages (Actions Native)'
+        if: always()
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: 'Deploy QA Dashboard to GitHub Pages (gh-pages Branch)'
         if: always()
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: pages-dist
+          publish_dir: dist
           keep_files: true
