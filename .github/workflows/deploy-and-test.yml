@@ -18,47 +18,47 @@ env:
 
 jobs:
   deploy-and-test-live:
-    name: 🌐 13-Stage CI/CD Deployment & Live Selenium E2E Pipeline
+    name: '🌐 13-Stage CI/CD Deployment & Live Selenium E2E Pipeline'
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
       # Stage 1: Repository Checkout
-      - name: 📥 Stage 1: Checkout Repository
+      - name: '📥 Stage 1: Checkout Repository'
         uses: actions/checkout@v4
 
       # Stage 2: Dependency Installation
-      - name: 📦 Stage 2: Install Dependencies
+      - name: '📦 Stage 2: Install Dependencies'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install Node Dependencies
+      - name: 'Install Node Dependencies'
         run: |
           npm install
           cd automation && npm install
 
       # Stage 3: Build Application
-      - name: 🛠️ Stage 3: Build Application Bundle
+      - name: '🛠️ Stage 3: Build Application Bundle'
         run: |
           npm run build
 
       # Stage 4: Static Analysis
-      - name: 🔍 Stage 4: Static Code Analysis & Verification
+      - name: '🔍 Stage 4: Static Code Analysis & Verification'
         run: |
           echo "Static verification passed. Build dist output verified."
           ls -la dist/
 
       # Stage 5: Deploy to GitHub Pages
-      - name: 🚀 Stage 5: Deploy Application to GitHub Pages
+      - name: '🚀 Stage 5: Deploy Application to GitHub Pages'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
 
       # Stage 6: Wait for Deployment
-      - name: ⏳ Stage 6: Wait for Live GitHub Pages Deployment Availability
+      - name: '⏳ Stage 6: Wait for Live GitHub Pages Deployment Availability'
         run: |
           echo "Polling $BASE_URL for HTTP 200 OK availability..."
           max_attempts=30
@@ -75,7 +75,7 @@ jobs:
           done
 
       # Stage 7: Deployment Verification
-      - name: 🩺 Stage 7: Deployment Verification & Health Check
+      - name: '🩺 Stage 7: Deployment Verification & Health Check'
         run: |
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL")
           if [ "$HTTP_CODE" -ne 200 ]; then
@@ -85,14 +85,14 @@ jobs:
           echo "✅ Deployment Health Check PASSED: $BASE_URL returns HTTP 200"
 
       # Stage 8: Run Selenium E2E Tests
-      - name: 🧪 Stage 8: Run Selenium 480 E2E Tests Against LIVE Deployment
+      - name: '🧪 Stage 8: Run Selenium 480 E2E Tests Against LIVE Deployment'
         continue-on-error: true
         run: |
           cd automation
           node runners/run_selenium_suite.js
 
       # Stage 9 & 10: Generate Reports & Excel Reports
-      - name: 📊 Stage 9 & 10: Verify Report Formats & Excel Workbooks
+      - name: '📊 Stage 9 & 10: Verify Report Formats & Excel Workbooks'
         if: always()
         run: |
           ls -la automation/reports/Excel/ || true
@@ -101,7 +101,7 @@ jobs:
           ls -la automation/reports/Summary/ || true
 
       # Stage 11: Upload Artifacts (Retention: 30 Days)
-      - name: 📁 Stage 11: Upload All Reports & Evidence Artifacts
+      - name: '📁 Stage 11: Upload All Reports & Evidence Artifacts'
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -113,7 +113,7 @@ jobs:
           retention-days: 30
 
       # Stage 12: Publish Summary
-      - name: 📝 Stage 12: Publish Live GitHub Pages Execution Summary
+      - name: '📝 Stage 12: Publish Live GitHub Pages Execution Summary'
         if: always()
         run: |
           if [ -f "automation/reports/Summary/summary.md" ]; then
@@ -121,7 +121,7 @@ jobs:
           fi
 
       # Stage 13: Store Historical Results
-      - name: 🏛️ Stage 13: Store Historical Build Results
+      - name: '🏛️ Stage 13: Store Historical Build Results'
         if: always()
         uses: peaceiris/actions-gh-pages@v3
         with:
