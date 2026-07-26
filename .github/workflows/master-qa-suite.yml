@@ -349,10 +349,17 @@ jobs:
             android-tests/test-results/
           retention-days: 7
 
+      - name: 'Prepare GitHub Pages Publish Directory'
+        if: always()
+        run: |
+          mkdir -p pages-dist/reports
+          cp -r selenium-tests/test-results/* pages-dist/reports/ || true
+          cp -r selenium-tests/test-results/* pages-dist/ || true
+
       - name: 'Deploy QA Dashboard to GitHub Pages'
         if: always()
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: selenium-tests/test-results
-          destination_dir: reports
+          publish_dir: pages-dist
+          keep_files: true

@@ -111,3 +111,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: automation/reports
           destination_dir: reports
+          keep_files: true

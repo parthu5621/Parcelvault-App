@@ -565,9 +565,24 @@ async function run() {
 </body>
 </html>`;
 
-  fs.mkdirSync(path.dirname(htmlPath), { recursive: true });
-  fs.writeFileSync(htmlPath, htmlContent, 'utf8');
-  console.log(`Successfully generated beautiful HTML dashboard at: ${htmlPath}`);
+  const targetPaths = [
+    htmlPath,
+    path.join(rootDir, 'selenium-tests', 'test-results', 'index.html'),
+    path.join(rootDir, 'dist', 'dashboard.html'),
+    path.join(rootDir, 'dist', 'index.html'),
+    path.join(rootDir, 'dist', 'reports', 'dashboard.html'),
+    path.join(rootDir, 'dist', 'reports', 'index.html')
+  ];
+
+  targetPaths.forEach(p => {
+    try {
+      fs.mkdirSync(path.dirname(p), { recursive: true });
+      fs.writeFileSync(p, htmlContent, 'utf8');
+      console.log(`Successfully generated HTML dashboard at: ${p}`);
+    } catch (e) {
+      // Ignore if dist doesn't exist locally
+    }
+  });
 }
 
 run().catch(err => {
