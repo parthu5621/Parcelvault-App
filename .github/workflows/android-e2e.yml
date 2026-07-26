@@ -1,4 +1,4 @@
-name: Android App E2E Automation & CI/CD Pipeline
+name: 'Android App E2E Automation & CI/CD Pipeline'
 
 on:
   push:
@@ -124,7 +124,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-appium-e2e-reports-${{ github.run_number }}
+          name: 'android-appium-e2e-reports-${{ github.run_number }}'
           path: |
             automation/reports/
             automation/screenshots/

@@ -1,4 +1,4 @@
-name: ParcelVault — Master Automated QA Suite
+name: 'ParcelVault — Master Automated QA Suite'
 
 on:
   push:
@@ -97,7 +97,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: live-selenium-e2e-reports-${{ github.run_number }}
+          name: 'live-selenium-e2e-reports-${{ github.run_number }}'
           path: |
             automation/reports/
             automation/screenshots/
@@ -217,7 +217,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-appium-e2e-reports-${{ github.run_number }}
+          name: 'android-appium-e2e-reports-${{ github.run_number }}'
           path: |
             automation/reports/
             automation/screenshots/
@@ -282,7 +282,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-results
+          name: 'unit-test-results'
           path: backend/
           retention-days: 7
 
@@ -388,7 +388,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: load-test-results
+          name: 'load-test-results'
           path: load-testing/
           retention-days: 7
 
@@ -437,7 +437,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: master-qa-report-dashboard
+          name: 'master-qa-report-dashboard'
           path: |
             selenium-tests/test-results/
             android-tests/test-results/

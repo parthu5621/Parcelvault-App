@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages & Run Live Selenium E2E Suite
+name: 'Deploy to GitHub Pages & Run Live Selenium E2E Suite'
 
 on:
   push:
@@ -105,7 +105,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: live-selenium-e2e-reports-${{ github.run_number }}
+          name: 'live-selenium-e2e-reports-${{ github.run_number }}'
           path: |
             automation/reports/
             automation/screenshots/

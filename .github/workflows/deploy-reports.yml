@@ -1,4 +1,4 @@
-name: Deploy Test Reports to GitHub Pages
+name: 'Deploy Test Reports to GitHub Pages'
 
 on:
   workflow_run:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   deploy-pages:
-    name: 🌐 Deploy Historical & Latest Reports to GitHub Pages
+    name: '🌐 Deploy Historical & Latest Reports to GitHub Pages'
     runs-on: ubuntu-latest
 
     steps:
