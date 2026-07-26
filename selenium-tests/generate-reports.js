@@ -565,6 +565,7 @@ async function run() {
 </body>
 </html>`;
 
+  fs.mkdirSync(path.dirname(htmlPath), { recursive: true });
   fs.writeFileSync(htmlPath, htmlContent, 'utf8');
   console.log(`Successfully generated beautiful HTML dashboard at: ${htmlPath}`);
 }
