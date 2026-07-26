@@ -571,7 +571,11 @@ async function run() {
     path.join(rootDir, 'dist', 'dashboard.html'),
     path.join(rootDir, 'dist', 'index.html'),
     path.join(rootDir, 'dist', 'reports', 'dashboard.html'),
-    path.join(rootDir, 'dist', 'reports', 'index.html')
+    path.join(rootDir, 'dist', 'reports', 'index.html'),
+    path.join(rootDir, 'public', 'dashboard.html'),
+    path.join(rootDir, 'public', 'index.html'),
+    path.join(rootDir, 'public', 'reports', 'dashboard.html'),
+    path.join(rootDir, 'public', 'reports', 'index.html')
   ];
 
   targetPaths.forEach(p => {
