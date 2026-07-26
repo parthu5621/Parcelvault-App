@@ -25,10 +25,10 @@ jobs:
       HEADLESS: "true"
 
     steps:
-      - name: '📥 Stage 1: Checkout Repository'
+      - name: 'Checkout Repository'
         uses: actions/checkout@v4
 
-      - name: '📦 Stage 2: Install Dependencies'
+      - name: 'Setup Node.js 20.x'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -39,22 +39,22 @@ jobs:
           npm install
           cd automation && npm install
 
-      - name: '🛠️ Stage 3: Build Application Bundle'
+      - name: 'Build Application Bundle'
         run: |
           npm run build
 
-      - name: '🔍 Stage 4: Static Code Analysis & Verification'
+      - name: 'Static Code Analysis and Verification'
         run: |
           echo "Static verification passed. Build dist output verified."
           ls -la dist/
 
-      - name: '🚀 Stage 5: Deploy Application to GitHub Pages'
+      - name: 'Deploy Application to GitHub Pages'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
 
-      - name: '⏳ Stage 6: Wait for Live GitHub Pages Deployment Availability'
+      - name: 'Wait for Live GitHub Pages Deployment Availability'
         run: |
           echo "Polling $BASE_URL for HTTP 200 OK availability..."
           max_attempts=30
@@ -70,7 +70,7 @@ jobs:
             sleep 5
           done
 
-      - name: '🩺 Stage 7: Deployment Verification & Health Check'
+      - name: 'Deployment Verification and Health Check'
         run: |
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL")
           if [ "$HTTP_CODE" -ne 200 ]; then
@@ -79,13 +79,13 @@ jobs:
           fi
           echo "✅ Deployment Health Check PASSED: $BASE_URL returns HTTP 200"
 
-      - name: '🧪 Stage 8: Run Selenium 480 E2E Tests Against LIVE Deployment'
+      - name: 'Run Selenium 480 E2E Tests Against LIVE Deployment'
         continue-on-error: true
         run: |
           cd automation
           node runners/run_selenium_suite.js
 
-      - name: '📊 Stage 9 & 10: Verify Report Formats & Excel Workbooks'
+      - name: 'Verify Report Formats and Excel Workbooks'
         if: always()
         run: |
           ls -la automation/reports/Excel/ || true
@@ -93,25 +93,25 @@ jobs:
           ls -la automation/reports/JSON/ || true
           ls -la automation/reports/Summary/ || true
 
-      - name: '📁 Stage 11: Upload All Reports & Evidence Artifacts'
+      - name: 'Upload All Reports and Evidence Artifacts'
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: 'live-selenium-e2e-reports-${{ github.run_number }}'
+          name: live-selenium-e2e-reports-${{ github.run_number }}
           path: |
             automation/reports/
             automation/screenshots/
             automation/logs/
           retention-days: 30
 
-      - name: '📝 Stage 12: Publish Live GitHub Pages Execution Summary'
+      - name: 'Publish Live GitHub Pages Execution Summary'
         if: always()
         run: |
           if [ -f "automation/reports/Summary/summary.md" ]; then
             cat automation/reports/Summary/summary.md >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: '🏛️ Stage 13: Store Historical Build Results'
+      - name: 'Store Historical Build Results'
         if: always()
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -126,31 +126,31 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: '📥 Stage 1: Checkout Repository'
+      - name: 'Checkout Repository'
         uses: actions/checkout@v4
 
-      - name: '☕ Stage 2: Setup Java 17 (JDK)'
+      - name: 'Setup Java 17 JDK'
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: '🤖 Stage 3: Setup Android SDK'
+      - name: 'Setup Android SDK'
         uses: android-actions/setup-android@v3
 
-      - name: '📦 Stage 4: Install Node.js & Automation Dependencies'
+      - name: 'Setup Node.js and Automation Dependencies'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: 'Install Appium & Root Packages'
+      - name: 'Install Appium and Packages'
         run: |
           npm install -g appium
           appium driver install uiautomator2
           cd automation && npm install
 
-      - name: '🛠️ Stage 5: Build Android APK'
+      - name: 'Build Android APK'
         run: |
           if [ -d "android-app" ]; then
             cd android-app
@@ -165,7 +165,7 @@ jobs:
             npm install && npm run build
           fi
 
-      - name: '🚀 Stage 6 & 7: Start & Verify Android Emulator Readiness'
+      - name: 'Start and Verify Android Emulator Readiness'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
@@ -177,7 +177,7 @@ jobs:
             adb wait-for-device
             adb shell getprop sys.boot_completed
 
-      - name: '📱 Stage 8: Install APK on Emulator'
+      - name: 'Install APK on Emulator'
         run: |
           APK_FILE=$(find . -name "*.apk" | head -n 1)
           if [ -f "$APK_FILE" ]; then
@@ -187,25 +187,25 @@ jobs:
             echo "No APK found, skipping direct adb install step"
           fi
 
-      - name: '🔌 Stage 9 & 10: Start & Verify Appium Server Health'
+      - name: 'Start and Verify Appium Server Health'
         run: |
           appium --log appium.log &
           sleep 5
           curl -s http://127.0.0.1:4723/status || echo "Appium status verified"
 
-      - name: '🧪 Stage 11: Execute Appium 420 E2E Test Suite'
+      - name: 'Execute Appium 420 E2E Test Suite'
         continue-on-error: true
         run: |
           cd automation
           node runners/master_e2e_runner.js
 
-      - name: '📸 Stage 12 & 13: Capture Screenshots & Logs'
+      - name: 'Capture Screenshots and Logs'
         if: always()
         run: |
           mkdir -p automation/reports/logs
           adb logcat -d > automation/reports/logs/android_device.log || true
 
-      - name: '📊 Stage 14-17: Verify All Report Formats Generated'
+      - name: 'Verify All Report Formats Generated'
         if: always()
         run: |
           ls -la automation/reports/Excel/ || true
@@ -213,18 +213,18 @@ jobs:
           ls -la automation/reports/JSON/ || true
           ls -la automation/reports/Summary/ || true
 
-      - name: '📁 Stage 18: Upload Test Artifacts (30 Days Retention)'
+      - name: 'Upload Test Artifacts'
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: 'android-appium-e2e-reports-${{ github.run_number }}'
+          name: android-appium-e2e-reports-${{ github.run_number }}
           path: |
             automation/reports/
             automation/screenshots/
             automation/logs/
           retention-days: 30
 
-      - name: '🌐 Stage 19 & 20: Publish Reports to GitHub Pages & Maintain History'
+      - name: 'Publish Reports to GitHub Pages'
         if: always()
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -232,7 +232,7 @@ jobs:
           publish_dir: automation/reports
           destination_dir: reports
 
-      - name: '📝 Stage 21: Publish GitHub Action Step Summary'
+      - name: 'Publish Step Summary'
         if: always()
         run: |
           if [ -f "automation/reports/summary.md" ]; then
@@ -246,7 +246,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: 'Checkout repository'
+      - name: 'Checkout Repository'
         uses: actions/checkout@v4
 
       - name: 'Setup Node.js 22.x'
@@ -259,7 +259,7 @@ jobs:
         run: npm install
         working-directory: ./backend
 
-      - name: 'Seed Database & Verify SQLite Models'
+      - name: 'Seed Database and Verify SQLite Models'
         run: |
           npm run seed
           node -e "
@@ -282,7 +282,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: 'unit-test-results'
+          name: unit-test-results
           path: backend/
           retention-days: 7
 
@@ -293,7 +293,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: 'Checkout repository'
+      - name: 'Checkout Repository'
         uses: actions/checkout@v4
 
       - name: 'Setup Node.js 22.x'
@@ -311,7 +311,7 @@ jobs:
             });
           "
 
-      - name: 'Validate Security & Environment Controls'
+      - name: 'Validate Security and Environment Controls'
         run: |
           echo "Checking security policies, JWT validation logic, and input sanitization..."
           echo "✅ Input validation tests passed (150/150)"
@@ -324,7 +324,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: 'Checkout repository'
+      - name: 'Checkout Repository'
         uses: actions/checkout@v4
 
       - name: 'Setup Node.js 22.x'
@@ -333,12 +333,12 @@ jobs:
           node-version: '22.x'
           cache: 'npm'
 
-      - name: 'Install & Build Production Assets'
+      - name: 'Install and Build Production Assets'
         run: |
           npm install
           npm run build
 
-      - name: 'Verify Build Artifacts & Static Distribution'
+      - name: 'Verify Build Artifacts and Static Distribution'
         run: |
           if [ -d "dist" ]; then
             echo "✅ Build directory dist/ exists and contains bundle artifacts"
@@ -360,7 +360,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: 'Checkout repository'
+      - name: 'Checkout Repository'
         uses: actions/checkout@v4
 
       - name: 'Setup Node.js 22.x'
@@ -388,7 +388,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: 'load-test-results'
+          name: load-test-results
           path: load-testing/
           retention-days: 7
 
@@ -400,7 +400,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 'Checkout repository'
+      - name: 'Checkout Repository'
         uses: actions/checkout@v4
 
       - name: 'Setup Node.js 22.x'
@@ -424,7 +424,7 @@ jobs:
           mkdir -p selenium-tests/test-results
           mkdir -p android-tests/test-results
 
-      - name: 'Generate Unified QA Reports & HTML Dashboard'
+      - name: 'Generate Unified QA Reports and HTML Dashboard'
         run: node selenium-tests/generate-reports.js
 
       - name: 'Generate Formatted Excel Report Workbook'
@@ -437,7 +437,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: 'master-qa-report-dashboard'
+          name: master-qa-report-dashboard
           path: |
             selenium-tests/test-results/
             android-tests/test-results/

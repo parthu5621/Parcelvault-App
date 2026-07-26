@@ -1,4 +1,4 @@
-name: 'Android App E2E Automation & CI/CD Pipeline'
+name: 'Android App E2E Automation and CI/CD Pipeline'
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *' # Daily midnight run
+    - cron: '0 0 * * *'
 
 permissions:
   contents: write
@@ -21,36 +21,31 @@ jobs:
     timeout-minutes: 90
 
     steps:
-      # Stage 1: Checkout Repository
-      - name: '📥 Stage 1: Checkout Repository'
+      - name: 'Checkout Repository'
         uses: actions/checkout@v4
 
-      # Stage 2: Setup Java 17
-      - name: '☕ Stage 2: Setup Java 17 (JDK)'
+      - name: 'Setup Java 17 JDK'
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # Stage 3: Setup Android SDK
-      - name: '🤖 Stage 3: Setup Android SDK'
+      - name: 'Setup Android SDK'
         uses: android-actions/setup-android@v3
 
-      # Stage 4: Install Node.js & Dependencies
-      - name: '📦 Stage 4: Install Node.js & Automation Dependencies'
+      - name: 'Setup Node.js and Automation Dependencies'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: 'Install Appium & Root Packages'
+      - name: 'Install Appium and Packages'
         run: |
           npm install -g appium
           appium driver install uiautomator2
           cd automation && npm install
 
-      # Stage 5: Build APK
-      - name: '🛠️ Stage 5: Build Android APK'
+      - name: 'Build Android APK'
         run: |
           if [ -d "android-app" ]; then
             cd android-app
@@ -65,8 +60,7 @@ jobs:
             npm install && npm run build
           fi
 
-      # Stage 6 & 7: Start & Verify Android Emulator
-      - name: '🚀 Stage 6 & 7: Start & Verify Android Emulator Readiness'
+      - name: 'Start and Verify Android Emulator Readiness'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
@@ -78,8 +72,7 @@ jobs:
             adb wait-for-device
             adb shell getprop sys.boot_completed
 
-      # Stage 8: Install APK onto Emulator
-      - name: '📱 Stage 8: Install APK on Emulator'
+      - name: 'Install APK on Emulator'
         run: |
           APK_FILE=$(find . -name "*.apk" | head -n 1)
           if [ -f "$APK_FILE" ]; then
@@ -89,29 +82,25 @@ jobs:
             echo "No APK found, skipping direct adb install step"
           fi
 
-      # Stage 9 & 10: Start & Verify Appium Server
-      - name: '🔌 Stage 9 & 10: Start & Verify Appium Server Health'
+      - name: 'Start and Verify Appium Server Health'
         run: |
           appium --log appium.log &
           sleep 5
           curl -s http://127.0.0.1:4723/status || echo "Appium status verified"
 
-      # Stage 11: Execute Appium E2E Tests (420 Scenarios)
-      - name: '🧪 Stage 11: Execute Appium 420 E2E Test Suite'
+      - name: 'Execute Appium 420 E2E Test Suite'
         continue-on-error: true
         run: |
           cd automation
           node runners/master_e2e_runner.js
 
-      # Stage 12 & 13: Capture Screenshots & Logs
-      - name: '📸 Stage 12 & 13: Capture Screenshots & Logs'
+      - name: 'Capture Screenshots and Logs'
         if: always()
         run: |
           mkdir -p automation/reports/logs
           adb logcat -d > automation/reports/logs/android_device.log || true
 
-      # Stage 14, 15, 16, 17: Reports Generation
-      - name: '📊 Stage 14-17: Verify All Report Formats Generated'
+      - name: 'Verify All Report Formats Generated'
         if: always()
         run: |
           ls -la automation/reports/Excel/ || true
@@ -119,20 +108,18 @@ jobs:
           ls -la automation/reports/JSON/ || true
           ls -la automation/reports/Summary/ || true
 
-      # Stage 18: Upload Artifacts (Retention: 30 Days)
-      - name: '📁 Stage 18: Upload Test Artifacts (30 Days Retention)'
+      - name: 'Upload Test Artifacts'
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: 'android-appium-e2e-reports-${{ github.run_number }}'
+          name: android-appium-e2e-reports-${{ github.run_number }}
           path: |
             automation/reports/
             automation/screenshots/
             automation/logs/
           retention-days: 30
 
-      # Stage 19 & 20: Publish Reports to GitHub Pages & Archive History
-      - name: '🌐 Stage 19 & 20: Publish Reports to GitHub Pages & Maintain History'
+      - name: 'Publish Reports to GitHub Pages'
         if: always()
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -140,8 +127,7 @@ jobs:
           publish_dir: automation/reports
           destination_dir: reports
 
-      # Stage 21: Publish GitHub Action Step Summary
-      - name: '📝 Stage 21: Publish GitHub Action Step Summary'
+      - name: 'Publish Step Summary'
         if: always()
         run: |
           if [ -f "automation/reports/summary.md" ]; then
