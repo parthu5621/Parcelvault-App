@@ -47,7 +47,19 @@ jobs:
           echo "Static verification passed. Build dist output verified."
           ls -la dist/
 
+      - name: 'Setup Pages'
+        uses: actions/configure-pages@v5
+
+      - name: 'Upload Pages Artifact'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
       - name: 'Deploy Application to GitHub Pages'
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: 'Legacy gh-pages branch sync'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
