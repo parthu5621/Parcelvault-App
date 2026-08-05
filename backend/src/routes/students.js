@@ -22,9 +22,6 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
     const [rows] = await db.query(`
       SELECT * FROM students 
       WHERE student_id IS NOT NULL AND student_id != ''
-        AND LOWER(name) NOT LIKE '%admin%'
-        AND LOWER(email) NOT LIKE '%admin%'
-        AND email NOT IN (SELECT email FROM admins)
       ORDER BY name
     `);
     res.json({ success: true, data: rows.map(mapStudent) });
@@ -42,9 +39,6 @@ router.get('/search', authenticate, requireAdmin, async (req, res) => {
       SELECT * FROM students
       WHERE (name LIKE ? OR email LIKE ? OR student_id LIKE ?)
         AND student_id IS NOT NULL AND student_id != ''
-        AND LOWER(name) NOT LIKE '%admin%'
-        AND LOWER(email) NOT LIKE '%admin%'
-        AND email NOT IN (SELECT email FROM admins)
       ORDER BY name LIMIT 20
     `, [q, q, q]);
     res.json({ success: true, data: rows.map(mapStudent) });

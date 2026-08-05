@@ -139,8 +139,9 @@ private fun HomeTab(
     }
 
     val totalCount = parcels.size.toString()
-    val readyCount = parcels.count { it.status == "ready" }.toString()
-    val pendingCount = parcels.count { it.status == "pending" }.toString()
+    val readyCount = parcels.count { it.status.lowercase() == "ready" }.toString()
+    val pendingCount = parcels.count { it.status.lowercase() == "pending" }.toString()
+    val collectedCount = parcels.count { it.status.lowercase() == "collected" }.toString()
     val studentName = ApiClient.userName ?: "Student"
 
     LazyColumn(
@@ -168,10 +169,11 @@ private fun HomeTab(
                     Text("Hello, $studentName 👋", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
                     Text("My Parcels", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         StatChip("Total", totalCount)
-                        StatChip("Ready", readyCount)
                         StatChip("Pending", pendingCount)
+                        StatChip("Ready", readyCount)
+                        StatChip("Collected", collectedCount)
                     }
                 }
             }

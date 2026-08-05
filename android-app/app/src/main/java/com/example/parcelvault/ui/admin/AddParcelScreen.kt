@@ -44,14 +44,21 @@ fun AddParcelScreen(onBack: () -> Unit) {
     var showStudentPicker  by remember { mutableStateOf(false) }
     var studentSearchQuery by remember { mutableStateOf("") }
 
+    var studentsLoadError by remember { mutableStateOf("") }
+
     LaunchedEffect(Unit) {
         try {
             val response = ApiClient.apiService.getStudents()
             if (response.isSuccessful && response.body()?.success == true) {
                 studentsList = response.body()?.data ?: emptyList()
+                studentsLoadError = ""
+            } else {
+                studentsLoadError = "Could not load students. Check server connection."
+                Toast.makeText(context, "Failed to load student list", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            // Silently handle
+            studentsLoadError = "Network error: ${e.message}"
+            Toast.makeText(context, "Network error loading students", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -216,7 +223,13 @@ fun AddParcelScreen(onBack: () -> Unit) {
                     Column(modifier = Modifier.weight(1f)) {
                         if (studentId.isBlank()) {
                             Text("Select Student", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Text("Tap to search and select", color = Color.Gray, fontSize = 12.sp)
+                            if (studentsLoadError.isNotBlank()) {
+                                Text(studentsLoadError, color = Color(0xFFEF4444), fontSize = 11.sp)
+                            } else if (studentsList.isEmpty()) {
+                                Text("Loading students...", color = Color.Gray, fontSize = 12.sp)
+                            } else {
+                                Text("Tap to search and select (${studentsList.size} students)", color = Color.Gray, fontSize = 12.sp)
+                            }
                         } else {
                             Text(studentName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             Text("Student ID: $studentId", color = Color(0xFF60A5FA), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)

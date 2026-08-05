@@ -228,6 +228,7 @@ const SecondaryBtn = ({ children, onClick, className = '', id }: { children: Rea
 
 interface SavedAccount {
   email: string;
+  password?: string;
   role: 'student' | 'admin';
   name?: string;
   lastLogin?: string;
@@ -235,16 +236,12 @@ interface SavedAccount {
 
 function getSavedAccountsList(): SavedAccount[] {
   try {
-    // Remove legacy plain-text password keys for security compliance
-    localStorage.removeItem('pv_saved_password');
-    localStorage.removeItem('pv_admin_saved_password');
-
     const raw = localStorage.getItem('pv_saved_accounts');
     if (raw) {
       const parsed: SavedAccount[] = JSON.parse(raw);
-      // Strip any legacy password fields if present
-      return parsed.map(({ email, role, name, lastLogin }) => ({
+      return parsed.map(({ email, password, role, name, lastLogin }) => ({
         email,
+        password: password || '',
         role: role || 'student',
         name: name || email.split('@')[0],
         lastLogin
@@ -253,15 +250,10 @@ function getSavedAccountsList(): SavedAccount[] {
   } catch (e) {
     console.error('Failed to parse saved accounts', e);
   }
-
-  const savedEmail = localStorage.getItem('pv_saved_email');
-  if (savedEmail) {
-    return [{ email: savedEmail, role: 'student', name: savedEmail.split('@')[0] }];
-  }
   return [];
 }
 
-function storeSavedAccount(account: { email: string; role: 'student' | 'admin'; name?: string }) {
+function storeSavedAccount(account: { email: string; password?: string; role: 'student' | 'admin'; name?: string }) {
   try {
     // Remove legacy plain-text password storage
     localStorage.removeItem('pv_saved_password');
@@ -270,6 +262,7 @@ function storeSavedAccount(account: { email: string; role: 'student' | 'admin'; 
     const existing = getSavedAccountsList().filter(a => a.email.toLowerCase() !== account.email.toLowerCase());
     const newAccount: SavedAccount = {
       email: account.email,
+      password: account.password || '',
       role: account.role,
       name: account.name || account.email.split('@')[0],
       lastLogin: new Date().toISOString()
@@ -277,11 +270,6 @@ function storeSavedAccount(account: { email: string; role: 'student' | 'admin'; 
     existing.unshift(newAccount);
     const trimmed = existing.slice(0, 5);
     localStorage.setItem('pv_saved_accounts', JSON.stringify(trimmed));
-    if (account.role === 'student') {
-      localStorage.setItem('pv_saved_email', account.email);
-    } else {
-      localStorage.setItem('pv_admin_saved_email', account.email);
-    }
   } catch (e) {
     console.error('Failed to store saved account', e);
   }
@@ -744,16 +732,13 @@ function LoginScreen({ onLogin, onBack, onRegister, onForgotPassword, showToast 
   useEffect(() => {
     const list = getSavedAccountsList();
     setSavedAccounts(list);
-    const studentAcc = list.find(a => a.role === role) || list[0];
-    if (studentAcc) {
-      setEmail(studentAcc.email);
-    }
   }, [role]);
 
   const handleSelectAccount = (acc: SavedAccount) => {
     setEmail(acc.email);
+    if (acc.password) setPassword(acc.password);
     if (acc.role) setRole(acc.role as any);
-    showToast(`Loaded saved email for ${acc.email}`, 'info');
+    showToast(`Account loaded — tap Sign In`, 'info');
   };
 
   const handleRemoveAccount = (e: React.MouseEvent, accEmail: string) => {
@@ -782,8 +767,8 @@ function LoginScreen({ onLogin, onBack, onRegister, onForgotPassword, showToast 
           setPendingRole(userRole);
           setShowSaveAccountModal(true);
         } else {
-          // Re-update timestamp
-          storeSavedAccount({ email, role: (userRole as any) });
+          // Re-update timestamp + password
+          storeSavedAccount({ email, password, role: (userRole as any) });
           showToast('Welcome back!', 'success');
           onLogin(userRole);
         }
@@ -799,7 +784,7 @@ function LoginScreen({ onLogin, onBack, onRegister, onForgotPassword, showToast 
   const handleConfirmSaveAccount = (shouldSave: boolean) => {
     setShowSaveAccountModal(false);
     if (shouldSave) {
-      storeSavedAccount({ email, role: (pendingRole as any) || role });
+      storeSavedAccount({ email, password, role: (pendingRole as any) || role });
       showToast('Account saved for fast login!', 'success');
     } else {
       showToast('Welcome back!', 'success');
@@ -984,19 +969,14 @@ function AdminLoginScreen({ onLogin, onBack, showToast }: any) {
   const { login } = useStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
+  const [showSaveAccountModal, setShowSaveAccountModal] = useState(false);
 
   // Retrieve saved credentials on mount
   useEffect(() => {
     const list = getSavedAccountsList();
     setSavedAccounts(list);
-    const adminAcc = list.find(a => a.role === 'admin') || list[0];
-    if (adminAcc) {
-      setEmail(adminAcc.email);
-      if (adminAcc.password) setPassword(adminAcc.password);
-    }
   }, []);
 
   const handleSelectAccount = (acc: SavedAccount) => {
@@ -1023,11 +1003,15 @@ function AdminLoginScreen({ onLogin, onBack, showToast }: any) {
       const result = await login(email, password, 'admin');
       setLoading(false);
       if (result.success && result.role === 'admin') {
-        if (rememberMe) {
+        const existingList = getSavedAccountsList();
+        const alreadySaved = existingList.some(a => a.email.toLowerCase() === email.toLowerCase());
+        if (!alreadySaved) {
+          setShowSaveAccountModal(true);
+        } else {
           storeSavedAccount({ email, password, role: 'admin' });
+          showToast('Welcome back!', 'success');
+          onLogin('admin');
         }
-        showToast('Admin logged in!', 'success');
-        onLogin('admin');
       } else {
         showToast('Invalid admin credentials', 'error');
       }
@@ -1037,8 +1021,50 @@ function AdminLoginScreen({ onLogin, onBack, showToast }: any) {
     }
   };
 
+  const handleConfirmSave = (shouldSave: boolean) => {
+    setShowSaveAccountModal(false);
+    if (shouldSave) {
+      storeSavedAccount({ email, password, role: 'admin' });
+      showToast('Account saved for fast login!', 'success');
+    } else {
+      showToast('Welcome back!', 'success');
+    }
+    onLogin('admin');
+  };
+
   return (
     <div className="size-full flex flex-col bg-zinc-950 overflow-y-auto">
+      {/* Save Account Confirmation Modal */}
+      {showSaveAccountModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center space-y-4">
+            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto text-orange-600">
+              <ShieldCheck className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-800">Save Account Details?</h3>
+              <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">
+                Would you like to save <strong className="text-orange-600">{email}</strong> for quick one-tap login next time?
+              </p>
+            </div>
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => handleConfirmSave(true)}
+                className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-pink-600 text-white font-bold rounded-2xl shadow-lg transition-all text-sm"
+              >
+                Yes, Save Account
+              </button>
+              <button
+                onClick={() => handleConfirmSave(false)}
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-2xl transition-all text-sm"
+              >
+                Not Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ScreenHeader title="Admin Login" subtitle="Administrator access" onBack={onBack} />
       <div className="flex-1 px-6 py-6 space-y-4">
         <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-pink-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
@@ -1091,38 +1117,7 @@ function AdminLoginScreen({ onLogin, onBack, showToast }: any) {
         <InputField id="admin-email" icon={<Mail className="w-5 h-5" />} label="Admin Email" type="email" placeholder="admin@university.edu" value={email} onChange={e => setEmail(e.target.value)} />
         <InputField id="admin-password" icon={<Lock className="w-5 h-5" />} label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
 
-        <div className="flex items-center justify-between pt-1">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={e => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded bg-zinc-900 border-zinc-800 text-orange-500 focus:ring-orange-500/20"
-            />
-            <span className="text-zinc-400 text-xs font-medium">Save login details</span>
-          </label>
-        </div>
-
         <PrimaryBtn id="admin-login-button" onClick={handleSubmit} disabled={loading}>{loading ? 'Signing in…' : 'Admin Sign In'}</PrimaryBtn>
-
-        <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Demo Admin Credentials</p>
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('admin@university.edu');
-                setPassword('admin123');
-                showToast('Filled Demo Admin Credentials', 'info');
-              }}
-              className="text-xs text-orange-400 hover:underline font-medium"
-            >
-              Auto-fill
-            </button>
-          </div>
-          <p className="text-zinc-300 text-sm">📧 admin@university.edu</p>
-          <p className="text-zinc-300 text-sm">🔑 admin123</p>
-        </div>
       </div>
     </div>
   );
@@ -2247,12 +2242,17 @@ function AdminDashboard({ navigate }: any) {
 }
 
 function AddParcelScreen({ navigate, showToast }: any) {
-  const { students, addParcel, setSelectedParcelId } = useStore();
+  const { students, addParcel, setSelectedParcelId, refreshData } = useStore();
   const [studentId, setStudentId] = useState('');
   const [description, setDescription] = useState('');
   const [deliveryService, setDeliveryService] = useState('');
   const [trackingId, setTrackingId] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Refresh student list every time this screen opens so newly registered students appear
+  useEffect(() => {
+    refreshData();
+  }, []);
 
   const handleAdd = async () => {
     if (!studentId || !description || !deliveryService) { showToast('Please fill all required fields', 'error'); return; }

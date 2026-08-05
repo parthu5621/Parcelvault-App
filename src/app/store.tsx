@@ -70,87 +70,24 @@ export interface Notification {
 
 // ─── Initial Default / Demo Mock Data ─────────────────────────────────────────
 
-const DEFAULT_STUDENTS: Student[] = [
-  { id: 's1', name: 'Alex Johnson', email: 'alex@university.edu', phone: '+91 98765 43210', studentId: 'STU001' },
-  { id: 's2', name: 'Priya Sharma', email: 'priya@university.edu', phone: '+91 87654 32109', studentId: 'STU002' },
-  { id: 's3', name: 'Ravi Kumar', email: 'ravi@university.edu', phone: '+91 76543 21098', studentId: 'STU003' },
-];
+const DEFAULT_STUDENTS: Student[] = [];
 
 const DEFAULT_ADMINS: Admin[] = [
   { id: 'a1', name: 'Admin Kumar', email: 'admin@university.edu' },
 ];
 
 const DEFAULT_LOCKERS: Locker[] = [
-  { id: 'LA1', label: 'A-01', section: 'A', size: 'small', isOccupied: true, currentParcelId: 'p1' },
-  { id: 'LA2', label: 'A-02', section: 'A', size: 'medium', isOccupied: true, currentParcelId: 'p2' },
+  { id: 'LA1', label: 'A-01', section: 'A', size: 'small', isOccupied: false, currentParcelId: null },
+  { id: 'LA2', label: 'A-02', section: 'A', size: 'medium', isOccupied: false, currentParcelId: null },
   { id: 'LA3', label: 'A-03', section: 'A', size: 'large', isOccupied: false, currentParcelId: null },
   { id: 'LB1', label: 'B-01', section: 'B', size: 'medium', isOccupied: false, currentParcelId: null },
   { id: 'LB2', label: 'B-02', section: 'B', size: 'small', isOccupied: false, currentParcelId: null },
   { id: 'LC1', label: 'C-01', section: 'C', size: 'large', isOccupied: false, currentParcelId: null },
 ];
 
-const DEFAULT_PARCELS: Parcel[] = [
-  {
-    id: 'p1',
-    trackingId: 'PKG-2026-00001',
-    studentId: 's1',
-    studentName: 'Alex Johnson',
-    description: 'Amazon - Books & Stationery',
-    deliveryService: 'Amazon Delivery',
-    lockerId: 'LA1',
-    lockerLabel: 'A-01',
-    otp: '482931',
-    status: 'ready',
-    arrivedAt: new Date(Date.now() - 7200000).toISOString(),
-    assignedAt: new Date(Date.now() - 5400000).toISOString(),
-    collectedAt: null,
-    expiresAt: new Date(Date.now() + 345600000).toISOString(),
-  },
-  {
-    id: 'p2',
-    trackingId: 'PKG-2026-00002',
-    studentId: 's2',
-    studentName: 'Priya Sharma',
-    description: 'Flipkart - Electronics',
-    deliveryService: 'Flipkart Quick',
-    lockerId: 'LA2',
-    lockerLabel: 'A-02',
-    otp: '719284',
-    status: 'ready',
-    arrivedAt: new Date(Date.now() - 18000000).toISOString(),
-    assignedAt: new Date(Date.now() - 14400000).toISOString(),
-    collectedAt: null,
-    expiresAt: new Date(Date.now() + 259200000).toISOString(),
-  },
-  {
-    id: 'p3',
-    trackingId: 'PKG-2026-00003',
-    studentId: 's1',
-    studentName: 'Alex Johnson',
-    description: 'Meesho - Clothing',
-    deliveryService: 'Meesho Express',
-    lockerId: null,
-    lockerLabel: null,
-    otp: null,
-    status: 'pending',
-    arrivedAt: new Date(Date.now() - 1800000).toISOString(),
-    assignedAt: null,
-    collectedAt: null,
-    expiresAt: null,
-  },
-];
+const DEFAULT_PARCELS: Parcel[] = [];
 
-const DEFAULT_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'n1',
-    studentId: 's1',
-    title: 'Parcel Ready for Pickup',
-    message: 'Your parcel PKG-2026-00001 has been assigned to Locker A-01. Use OTP 482931 to collect.',
-    type: 'alert',
-    isRead: false,
-    createdAt: new Date(Date.now() - 5400000).toISOString(),
-  },
-];
+const DEFAULT_NOTIFICATIONS: Notification[] = [];
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 

@@ -4,6 +4,7 @@ import android.content.Context
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import okhttp3.ConnectionPool
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -12,7 +13,21 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
-    const val DEFAULT_BASE_URL = "http://172.16.251.223:3001/api/"
+    fun isEmulator(): Boolean {
+        return (android.os.Build.FINGERPRINT.startsWith("generic")
+                || android.os.Build.FINGERPRINT.startsWith("unknown")
+                || android.os.Build.MODEL.contains("google_sdk")
+                || android.os.Build.MODEL.contains("Emulator")
+                || android.os.Build.MODEL.contains("Android SDK built for x86")
+                || android.os.Build.MANUFACTURER.contains("Genymotion")
+                || android.os.Build.HARDWARE.contains("goldfish")
+                || android.os.Build.HARDWARE.contains("ranchu"))
+    }
+
+    val defaultBaseUrl: String
+        get() = if (isEmulator()) "http://10.0.2.2:3001/api/" else "http://127.0.0.1:3001/api/"
+
+    const val DEFAULT_BASE_URL = "http://10.0.2.2:3001/api/"
     private const val PREFS_NAME = "parcelvault_prefs"
     private const val KEY_BASE_URL = "custom_base_url"
 
@@ -24,7 +39,7 @@ object ApiClient {
     private const val KEY_USER_STUDENT_ID = "auth_user_student_id"
     private const val KEY_USER_ROLE = "auth_user_role"
 
-    var currentBaseUrl: String = DEFAULT_BASE_URL
+    var currentBaseUrl: String = "http://10.0.2.2:3001/api/"
         private set
 
     // Session fields
@@ -42,46 +57,82 @@ object ApiClient {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
+    private var appContext: Context? = null
+
     private val retryInterceptor = Interceptor { chain ->
-        var request = chain.request()
+        var originalRequest = chain.request()
         if (token != null) {
-            request = request.newBuilder()
+            originalRequest = originalRequest.newBuilder()
                 .header("Authorization", "Bearer $token")
                 .build()
         }
 
-        var response: Response? = null
-        var exception: Exception? = null
-        var maxRetries = 3
-        var tryCount = 0
+        // 1. Try original request on current base URL
+        try {
+            val response = chain.proceed(originalRequest)
+            if (response.isSuccessful || response.code in 400..499) {
+                return@Interceptor response
+            }
+        } catch (_: Exception) {
+            // Network connection failed on currentBaseUrl, fallback to auto-discovery
+        }
 
-        while (tryCount < maxRetries) {
+        // 2. Candidate URLs for auto-discovery fallback (Emulator vs Physical Device)
+        val candidateUrls = if (isEmulator()) {
+            listOf(
+                "http://10.0.2.2:3001/api/",
+                "http://127.0.0.1:3001/api/",
+                "http://localhost:3001/api/",
+                "http://10.98.146.223:3001/api/",
+                "http://172.16.251.223:3001/api/"
+            )
+        } else {
+            listOf(
+                "http://127.0.0.1:3001/api/",
+                "http://10.0.2.2:3001/api/",
+                "http://localhost:3001/api/",
+                "http://10.98.146.223:3001/api/",
+                "http://172.16.251.223:3001/api/"
+            )
+        }.filter { !it.equals(currentBaseUrl, ignoreCase = true) }
+
+        connectionPool.evictAll()
+
+        for (targetUrl in candidateUrls) {
             try {
-                tryCount++
-                response = chain.proceed(request)
-                if (response.isSuccessful || response.code in 400..499) {
-                    return@Interceptor response
+                val fullPath = originalRequest.url.encodedPath + (if (originalRequest.url.encodedQuery != null) "?${originalRequest.url.encodedQuery}" else "")
+                val newUrlStr = targetUrl.removeSuffix("/") + fullPath
+                val newHttpUrl = newUrlStr.toHttpUrlOrNull() ?: continue
+
+                val newRequest = originalRequest.newBuilder()
+                    .url(newHttpUrl)
+                    .build()
+
+                val fastChain = chain.withConnectTimeout(2, TimeUnit.SECONDS)
+                    .withReadTimeout(3, TimeUnit.SECONDS)
+                val fallbackResponse = fastChain.proceed(newRequest)
+                if (fallbackResponse.isSuccessful || fallbackResponse.code in 400..499) {
+                    // Automatically update base URL so future requests use the working IP instantly
+                    appContext?.let { ctx ->
+                        updateBaseUrl(ctx, targetUrl)
+                    }
+                    return@Interceptor fallbackResponse
                 }
-            } catch (e: Exception) {
-                exception = e
-                // Evict dead TCP sockets from pool when network drops/reconnects
+            } catch (_: Exception) {
                 connectionPool.evictAll()
-                if (tryCount >= maxRetries) break
-                try {
-                    Thread.sleep((200L * tryCount))
-                } catch (_: InterruptedException) { }
             }
         }
 
-        if (response != null) return@Interceptor response
-        throw exception ?: IOException("Network error after $maxRetries retries")
+        // 3. Final attempt with original request to produce standard exception if all fail
+        connectionPool.evictAll()
+        return@Interceptor chain.proceed(originalRequest)
     }
 
     private val httpClient = OkHttpClient.Builder()
         .connectionPool(connectionPool)
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .writeTimeout(10, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .addInterceptor(retryInterceptor)
         .addInterceptor(logging)
@@ -92,8 +143,10 @@ object ApiClient {
         private set
 
     fun init(context: Context) {
+        appContext = context.applicationContext
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val savedUrl = prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
+        val initialDefault = defaultBaseUrl
+        val savedUrl = prefs.getString(KEY_BASE_URL, initialDefault) ?: initialDefault
         
         token = prefs.getString(KEY_TOKEN, null)
         userId = prefs.getString(KEY_USER_ID, null)
@@ -160,16 +213,20 @@ object ApiClient {
 
     fun updateBaseUrl(context: Context, newUrl: String) {
         var formattedUrl = newUrl.trim()
-        if (!formattedUrl.endsWith("/")) {
-            formattedUrl += "/"
-        }
-        if (!formattedUrl.endsWith("api/")) {
-            if (formattedUrl.endsWith("/")) {
-                formattedUrl += "api/"
-            } else {
-                formattedUrl += "/api/"
+        try {
+            if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+                formattedUrl = "http://$formattedUrl"
             }
+            val uri = java.net.URI.create(formattedUrl)
+            val scheme = uri.scheme ?: "http"
+            val host = uri.host ?: return
+            val port = if (uri.port != -1) uri.port else 3001
+            formattedUrl = "$scheme://$host:$port/api/"
+        } catch (_: Exception) {
+            if (!formattedUrl.endsWith("/")) formattedUrl += "/"
+            if (!formattedUrl.endsWith("api/")) formattedUrl += "api/"
         }
+
         currentBaseUrl = formattedUrl
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()

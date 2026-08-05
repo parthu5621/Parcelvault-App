@@ -185,25 +185,42 @@ async function initSqliteSchema() {
     );
   `);
 
-  // Seed default admin and student if tables are empty
+  // ── Seed default admin ONLY if NO admins exist at all ───────────────────
   try {
     const [existingAdmins] = runSqliteQuery("SELECT count(*) as count FROM admins");
     if (!existingAdmins || existingAdmins[0].count === 0) {
-      const hashedPass = bcrypt.hashSync('123456', 10);
-      const adminPass  = bcrypt.hashSync('admin123', 10);
+      const adminPass = bcrypt.hashSync('admin123', 10);
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-      
       runSqliteQuery("INSERT INTO admins (id, name, email, password, created_at) VALUES (?, ?, ?, ?, ?)", ['a1', 'Campus Admin', 'admin@university.edu', adminPass, now]);
-      runSqliteQuery("INSERT INTO students (id, name, email, phone, student_id, password, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)", ['s1', 'Alex Johnson', 'alex@university.edu', '+91 98765 43210', 'STU001', hashedPass, now]);
-      
-      // Default Lockers
-      runSqliteQuery("INSERT INTO lockers (id, label, building, section, size, is_occupied) VALUES (?, ?, ?, ?, ?, ?)", ['l1', 'A-01', 'Main Hub', 'Section A', 'medium', 0]);
-      runSqliteQuery("INSERT INTO lockers (id, label, building, section, size, is_occupied) VALUES (?, ?, ?, ?, ?, ?)", ['l2', 'A-02', 'Main Hub', 'Section A', 'large', 0]);
-      runSqliteQuery("INSERT INTO lockers (id, label, building, section, size, is_occupied) VALUES (?, ?, ?, ?, ?, ?)", ['l3', 'B-01', 'Main Hub', 'Section B', 'small', 0]);
+      console.log('Default admin seeded (admin@university.edu / admin123)');
     }
   } catch (e) {
-    console.error('SQLite seeding error:', e);
+    console.error('SQLite admin seeding error:', e);
   }
+
+  // ── Seed 22 lockers ONLY if NO lockers exist ──────────────────────────────
+  try {
+    const [existingLockers] = runSqliteQuery("SELECT count(*) as count FROM lockers");
+    if (!existingLockers || existingLockers[0].count === 0) {
+      const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      const sections = [
+        ['A','small'],['A','medium'],['A','large'],['A','small'],['A','medium'],['A','large'],['A','small'],['A','large'],
+        ['B','small'],['B','medium'],['B','large'],['B','small'],['B','medium'],['B','large'],['B','small'],
+        ['C','small'],['C','medium'],['C','large'],['C','small'],['C','medium'],['C','large'],['C','small'],
+      ];
+      sections.forEach(([sec, size], i) => {
+        const num = String(i + 1).padStart(2, '0');
+        runSqliteQuery(
+          "INSERT INTO lockers (id, label, building, section, size, is_occupied, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [`l${i + 1}`, `${sec}-${num}`, 'Main Hub', `Section ${sec}`, size, 0, now]
+        );
+      });
+      console.log('22 default lockers seeded.');
+    }
+  } catch (e) {
+    console.error('SQLite lockers seeding error:', e);
+  }
+
 
   console.log('Database initialized (SQLite).');
 }

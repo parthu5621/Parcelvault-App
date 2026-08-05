@@ -54,6 +54,7 @@ fun AdminDashboardScreen(
 
     LaunchedEffect(Unit) {
         try {
+            var statsLoaded = false
             val response = ApiClient.apiService.getAdminStats()
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
@@ -64,19 +65,34 @@ fun AdminDashboardScreen(
                         Triple("Ready",         data.parcels.ready.toString(), Color(0xFF10B981)),
                         Triple("Collected",     data.parcels.collectedToday.toString(), Color(0xFF6366F1)),
                     )
+                    statsLoaded = true
                 }
             }
 
             val parcelsResponse = ApiClient.apiService.getParcels()
             if (parcelsResponse.isSuccessful && parcelsResponse.body()?.success == true) {
-                recentActivity = parcelsResponse.body()?.data?.take(5)?.map { p ->
-                    when (p.status) {
+                val parcelsList = parcelsResponse.body()?.data ?: emptyList()
+                recentActivity = parcelsList.take(5).map { p ->
+                    when (p.status.lowercase()) {
                         "ready" -> "${p.trackingId} assigned to Locker ${p.lockerLabel ?: "N/A"}"
                         "pending" -> "${p.trackingId} pending locker assignment"
                         "collected" -> "${p.trackingId} collected by ${p.studentName}"
                         else -> "${p.trackingId} is marked ${p.status}"
                     }
-                } ?: emptyList()
+                }
+
+                if (!statsLoaded || stats.any { it.second == "--" }) {
+                    val tot = parcelsList.size
+                    val pend = parcelsList.count { it.status.lowercase() == "pending" }
+                    val rdy = parcelsList.count { it.status.lowercase() == "ready" }
+                    val coll = parcelsList.count { it.status.lowercase() == "collected" }
+                    stats = listOf(
+                        Triple("Total Parcels", tot.toString(), Color(0xFF3B82F6)),
+                        Triple("Pending",       pend.toString(), Color(0xFFF59E0B)),
+                        Triple("Ready",         rdy.toString(), Color(0xFF10B981)),
+                        Triple("Collected",     coll.toString(), Color(0xFF6366F1)),
+                    )
+                }
             }
         } catch (e: Exception) {
             Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()

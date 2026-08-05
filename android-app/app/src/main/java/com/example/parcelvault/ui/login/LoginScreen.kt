@@ -59,10 +59,7 @@ private fun getSavedAccounts(context: Context): List<SavedAndroidAccount> {
     }
 }
 
-private fun getDefaultDemoAccounts() = listOf(
-    SavedAndroidAccount("alex@university.edu", "123456", "student", "Alex Johnson"),
-    SavedAndroidAccount("admin@university.edu", "admin123", "admin", "Admin")
-)
+private fun getDefaultDemoAccounts(): List<SavedAndroidAccount> = emptyList()
 
 private fun saveAccount(context: Context, account: SavedAndroidAccount) {
     try {
@@ -123,14 +120,8 @@ fun LoginScreen(
     var savedAccountsList by remember { mutableStateOf(emptyList<SavedAndroidAccount>()) }
 
     LaunchedEffect(Unit) {
-        val list = getSavedAccounts(context)
-        savedAccountsList = list
-        val defaultAcc = list.find { it.role == if (isAdmin) "admin" else "student" } ?: list.firstOrNull()
-        if (defaultAcc != null && email.isBlank()) {
-            email = defaultAcc.email
-            password = defaultAcc.password
-            role = defaultAcc.role
-        }
+        // Load saved accounts from SharedPreferences for quick login
+        savedAccountsList = getSavedAccounts(context)
     }
 
     // ── Save Account Prompt Dialog ────────────────────────────────────────────────
@@ -607,12 +598,12 @@ fun LoginScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         AssistChip(
-                            onClick = { serverIpInput = "http://172.16.251.223:3001/api/" },
-                            label = { Text("🌐 172.16.251.223 (PC)", fontSize = 11.sp) }
+                            onClick = { serverIpInput = "http://10.0.2.2:3001/api/" },
+                            label = { Text("📱 Emulator (10.0.2.2)", fontSize = 11.sp) }
                         )
                         AssistChip(
-                            onClick = { serverIpInput = "http://10.0.2.2:3001/api/" },
-                            label = { Text("📱 Emulator", fontSize = 11.sp) }
+                            onClick = { serverIpInput = "http://10.98.146.223:3001/api/" },
+                            label = { Text("🌐 PC Wi-Fi", fontSize = 11.sp) }
                         )
                     }
                 }
@@ -661,7 +652,7 @@ fun LoginScreen(
                         color = Color.DarkGray
                     )
                     Text(
-                        text = "💡 Did your Wi-Fi network change? You can update the Server IP right now without rebuilding the app!",
+                        text = "💡 Tap below to switch connection automatically!",
                         fontSize = 12.sp,
                         color = Color(0xFF2563EB)
                     )
@@ -682,14 +673,13 @@ fun LoginScreen(
             dismissButton = {
                 TextButton(
                     onClick = {
-                        // Use real PC IP (for physical devices on same Wi-Fi)
-                        ApiClient.updateBaseUrl(context, "http://172.16.251.223:3001/api/")
+                        ApiClient.updateBaseUrl(context, "http://10.0.2.2:3001/api/")
                         currentServerUrl = ApiClient.currentBaseUrl
                         showNetworkErrorDialog = false
-                        Toast.makeText(context, "Switched to PC IP (172.16.251.223:3001). Try logging in again.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Switched to Emulator IP (10.0.2.2:3001). Try logging in again.", Toast.LENGTH_LONG).show()
                     }
                 ) {
-                    Text("Use 172.16.251.223 (PC)", fontSize = 11.sp, color = Color(0xFF2563EB))
+                    Text("Use 10.0.2.2 (Emulator)", fontSize = 11.sp, color = Color(0xFF2563EB))
                 }
             }
         )
