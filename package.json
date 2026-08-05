@@ -6,6 +6,7 @@
   "homepage": "https://parthu5621.github.io/Parcelvault-App",
   "scripts": {
     "build": "vite build",
+    "postbuild": "node automation/postbuild.js",
     "dev": "vite",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
